@@ -1,0 +1,25 @@
+{
+    "compilerOptions": {
+        "target": "ES2017",
+        "moduleResolution": "Node",
+        "outDir": "dist/",
+        "baseUrl": "./",
+        "sourceMap": true,
+        "allowSyntheticDefaultImports": true,
+        "paths": {
+            "@/*": [
+                "./src/*"
+            ],
+            "@mock/*": [
+                "./src/mock/*"
+            ]
+        },
+        "skipLibCheck": false
+    },
+    "exclude": [
+        "node_modules"
+    ],
+    "include": [
+        "src/**/*.ts"
+    ]
+}
