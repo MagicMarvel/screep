@@ -1,26 +1,13 @@
 // 游戏入口函数
-import { errorMapper } from "./modules/errorMapper";
-import { roleBuilder } from "./role.builder";
-import { roleHarvester } from "./role.harvester";
-import { roleUpgrader } from "./role.upgrader";
-import creepCreater from "./creep.creater";
+import { errorMapper } from "./settings/errorMapper";
+import createCreep from "./modules/init/createCreep";
+import cleanMemory from "./modules/init/cleanMemory";
+import runCreep from "./modules/init/assignCreep";
+import { CreepRole } from "./modules/creeps/declareCreepRoleEnum";
 
 export const loop = errorMapper(() => {
-  creepCreater();
-  if (Object.keys(Game.creeps).length >= 0) {
-    for (const name in Game.creeps) {
-      const creep = Game.creeps[name];
-      if (creep.memory.role === "harvester") {
-        roleHarvester.run(creep);
-      }
+  cleanMemory();
+  for (const name in Game.spawns) createCreep(Game.spawns[name]);
 
-      if (creep.memory.role === "builder") {
-        roleBuilder.run(creep);
-      }
-
-      if (creep.memory.role === "upgrader") {
-        roleUpgrader.run(creep);
-      }
-    }
-  }
+  runCreep();
 });
