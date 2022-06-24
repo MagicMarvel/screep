@@ -1,9 +1,9 @@
 export enum CreepRole {
   HARVESTER,
-  BUILDER,
+  TRANSFER,
   UPGRADER,
+  BUILDER,
   SOLDIER,
   REPAIRER,
-  TRANSFER,
   CLAIMER,
 }

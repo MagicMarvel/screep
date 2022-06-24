@@ -4,6 +4,7 @@ import copy from "rollup-plugin-copy";
 import resolve from "@rollup/plugin-node-resolve";
 import commonjs from "@rollup/plugin-commonjs";
 import typescript from "rollup-plugin-typescript2";
+import json from "@rollup/plugin-json";
 
 let config;
 // 根据指定的目标获取对应的配置项
@@ -45,6 +46,8 @@ export default {
   plugins: [
     // 清除上次编译成果
     clear({ targets: ["dist"] }),
+    // 读取json到js文件里
+    json(),
     // 打包依赖
     resolve(),
     // 模块化依赖

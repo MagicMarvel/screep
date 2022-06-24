@@ -1,3 +1,5 @@
+import { CreepRole } from "../creeps/declareCreepRoleEnum";
+
 /**
  * @param {Creep} creep 需要获得能量的creep
  */
@@ -37,10 +39,16 @@ export default (creep: Creep) => {
       });
     }
   } else {
-    if (creep.withdraw(sources[0], RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
-      creep.moveTo(sources[0], {
-        visualizePathStyle: { stroke: "#ffffff" },
-      });
-    }
+    // let transfer = 0,
+    //   harvester = 0;
+    // for (const name in Game.creeps) {
+    //   if (Game.creeps[name].memory.role == CreepRole.TRANSFER) transfer++;
+    //   if (Game.creeps[name].memory.role == CreepRole.HARVESTER) harvester++;
+    // }
+    // if (creep.withdraw(sources[0], RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
+    //   creep.moveTo(sources[0], {
+    //     visualizePathStyle: { stroke: "#ffffff" },
+    //   });
+    // }
   }
 };
