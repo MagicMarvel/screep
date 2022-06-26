@@ -25,9 +25,10 @@ interface claimerDetail {
 interface transferDetail {
     working: boolean;
     task: TransferQueueItem;
-    storeStructureBeforeWorking: AnyStructure;
+    storeStructureBeforeWorking: Id<AnyStoreStructure>;
     maxCarry: number;
     arriveFrom: boolean;
+    callback: () => void;
 }
 
 declare global {
@@ -65,5 +66,11 @@ declare global {
         transferQueue: TransferQueueItem[];
         // 目前运输的最大能量大小，大于这个则运输不了
         transferMaximum: number;
+        // 用于全局标记，主要是信号量相似的用法，用于协调多个单位
+        marks: {
+            [id: Id<_HasId>]: {
+                [flagName: string]: any;
+            };
+        };
     }
 }

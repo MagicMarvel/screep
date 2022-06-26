@@ -57,7 +57,7 @@ export const creepConfig: CreepConfig = {
                 const source = sources[i];
                 const sourceID = source.id;
                 if (harvestingEachSourceCreepNum[sourceID] == null) {
-                    console.log(sourceID);
+                    // console.log(`creepRole: sourceId: ${sourceID}`);
 
                     return {
                         harvesterDetail: {
@@ -92,7 +92,7 @@ export const creepConfig: CreepConfig = {
             if (creepNum[CreepRole.HARVESTER] == 1 && creepNum[CreepRole.TRANSFER] > 2) {
                 basePriority *= 100;
             }
-            console.log(basePriority);
+            // console.log(`creepRole: basePriority ${basePriority}`);
 
             return basePriority;
         },
@@ -342,9 +342,9 @@ export const creepConfig: CreepConfig = {
                 },
             };
         },
-        work: (creep: Creep) => {
+        work: (creep: Creep): void => {
             if (Memory.transferMaximum == null) Memory.transferMaximum = creep.store.getCapacity();
-            else Math.max(Memory.transferMaximum, creep.store.getCapacity());
+            else Memory.transferMaximum = Math.max(Memory.transferMaximum, creep.store.getCapacity());
 
             // 如果不在工作阶段，即为准备阶段
             if (!creep.memory.transferDetail.working) {
@@ -352,7 +352,7 @@ export const creepConfig: CreepConfig = {
                 if (creep.store.getUsedCapacity() != 0) {
                     // 去放能量的地方放能量
                     if (creep.memory.transferDetail.storeStructureBeforeWorking != null) {
-                        const container = creep.memory.transferDetail.storeStructureBeforeWorking;
+                        const container = Game.getObjectById(creep.memory.transferDetail.storeStructureBeforeWorking);
                         if (creep.transfer(container, RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
                             creep.moveTo(container);
                         } else {
@@ -360,19 +360,25 @@ export const creepConfig: CreepConfig = {
                         }
                     }
                     // 不知道能量放到哪的时候，去找一个地方放能量
-                    else creep.memory.transferDetail.storeStructureBeforeWorking = findTheNearestContainerWithCapacity(creep);
+                    else creep.memory.transferDetail.storeStructureBeforeWorking = findTheNearestContainerWithCapacity(creep).id;
                 } else {
-                    // 选择一份任务
+                    // 没有transfer列表的话就直接退出就好
 
+                    if (!Memory.transferQueue) return;
+
+                    // 选择一份任务
                     const creepCarry = creep.store.getFreeCapacity();
 
                     for (let i = 0; i < Memory.transferQueue.length; i++) {
                         const message = Memory.transferQueue[i];
                         if (creepCarry >= message.amount && Game.getObjectById(message.from).room == creep.room) {
+                            // 队列里删掉这个任务
+                            console.log(`creepConfig TRANSFER: 取出任务 ${creep.name} ${message.from} ${message.callback}`);
+                            creep.memory.transferDetail.callback = message.callback;
                             creep.memory.transferDetail.task = message;
                             creep.memory.transferDetail.arriveFrom = false;
                             creep.memory.transferDetail.working = true;
-                            // 队列里删掉这个任务
+
                             Memory.transferQueue.splice(i, 1);
                             return;
                         }
@@ -408,8 +414,11 @@ export const creepConfig: CreepConfig = {
                         if (creep.transfer(to, RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
                             creep.moveTo(to);
                         } else {
+                            // transfer finished
                             creep.memory.transferDetail.working = false;
                             creep.memory.transferDetail.arriveFrom = false;
+                            creep.say("finish task, run callback()");
+                            creep.memory.transferDetail.callback();
                         }
                     }
                 }
