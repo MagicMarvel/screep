@@ -9,6 +9,9 @@ import { creepConfig } from "./creepConfig";
  * @param mustUseAllEnergy 是否要建造最强壮那种
  */
 const addMessage = (spawn: StructureSpawn, type: CreepRole, mustUseAllEnergy: boolean = true) => {
+    if (spawn == null) {
+        throw new Error(`buildQueue.ts: addMessage: spawn is null`);
+    }
     Memory.buildQueue.push({
         spawnId: spawn.id,
         type,

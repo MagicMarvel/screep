@@ -1,8 +1,11 @@
-import { sortBy, sortByOrder } from "lodash";
+import { sortBy } from "lodash";
 import getEnergyFromStructure from "../utils/getEnergyFromStructure";
 import { CreepRole } from "./declareCreepRoleEnum";
-import { findTheNearestContainerWithCapacity } from "../utils/findTheNearestContainer";
-import { TransferQueueItem, FromTaskType, ToTaskType } from "../transfer/transferQueue";
+import { findTheNearestContainerWithCapacity } from "../utils/findTheNearestContainerWithCapacity";
+import { FromTaskType, ToTaskType } from "../transfer/transferQueue";
+import { callbacks } from "../../modules/callback/index";
+import creepTakeEnergy from "../transfer/creepTakeEnergy";
+import buildFactory from "./buildFactory";
 
 type CreepConfig = {
     [creepRole in CreepRole]: {
@@ -100,7 +103,7 @@ export const creepConfig: CreepConfig = {
     [CreepRole.UPGRADER]: {
         name: "Upgrader",
         limitAmount: (roomName: string) => {
-            return 4;
+            return 3;
         },
         extraMemory: (spawn) => {
             return {
@@ -109,20 +112,12 @@ export const creepConfig: CreepConfig = {
         },
         work: function (creep: Creep) {
             // 如果这个creep没有能量的话，就去收集能量
-            if (creep.memory.upgradeDetail.upgrading && creep.store[RESOURCE_ENERGY] == 0) {
-                creep.memory.upgradeDetail.upgrading = false;
-                creep.say("🔄 harvest");
+            if (creep.store.getUsedCapacity() < 100) {
+                creepTakeEnergy(creep, 1);
             }
-            if (!creep.memory.upgradeDetail.upgrading && creep.store.getFreeCapacity() == 0) {
-                creep.memory.upgradeDetail.upgrading = true;
-                creep.say("🚧 upgrade");
-            }
-            if (!creep.memory.upgradeDetail.upgrading) {
-                getEnergyFromStructure(creep);
-            } else {
-                if (creep.upgradeController(creep.room.controller) == ERR_NOT_IN_RANGE) {
-                    creep.moveTo(creep.room.controller);
-                }
+
+            if (creep.upgradeController(creep.room.controller) == ERR_NOT_IN_RANGE) {
+                creep.moveTo(creep.room.controller);
             }
         },
         body: {
@@ -142,42 +137,37 @@ export const creepConfig: CreepConfig = {
     [CreepRole.BUILDER]: {
         name: "Builder",
         limitAmount: (roomName: string) => {
-            return 2;
+            return 3;
         },
         extraMemory: (spawn) => {
             return {
                 builderDetail: {
-                    building: false,
+                    buildingWhich: null,
                 },
             };
         },
         work: (creep: Creep) => {
-            if (creep.memory.builderDetail.building && creep.store[RESOURCE_ENERGY] == 0) {
-                creep.memory.builderDetail.building = false;
-                creep.say("🔄 harvest");
-            }
-            if (!creep.memory.builderDetail.building && creep.store.getFreeCapacity() == 0) {
-                creep.memory.builderDetail.building = true;
-                creep.say("🚧 build");
+            if (creep.store.getUsedCapacity() < 100) {
+                creep.moveTo(Game.flags["Flag1"]);
+                creepTakeEnergy(creep);
             }
 
-            if (creep.memory.builderDetail.building) {
+            if (creep.memory.builderDetail.buildingWhich == null || Game.getObjectById(creep.memory.builderDetail.buildingWhich) == null) {
+                // 选择一个可建的去建造
                 var targets = creep.room.find(FIND_CONSTRUCTION_SITES);
                 if (targets.length) {
-                    if (creep.build(targets[parseInt(creep.name.slice(8, 10)) % 2]) == ERR_NOT_IN_RANGE) {
-                        creep.moveTo(targets[parseInt(creep.name.slice(8, 10)) % 2], {
-                            visualizePathStyle: { stroke: "#ffffff" },
-                        });
-                    }
+                    creep.memory.builderDetail.buildingWhich = targets[0].id;
                 }
-            } else {
-                getEnergyFromStructure(creep);
+            } else if (creep.build(Game.getObjectById(creep.memory.builderDetail.buildingWhich)) == ERR_NOT_IN_RANGE) {
+                creep.moveTo(Game.getObjectById(creep.memory.builderDetail.buildingWhich), {
+                    visualizePathStyle: { stroke: "#ffffff" },
+                });
             }
         },
         body: {
-            basic: [],
-            perfer: [WORK, CARRY, MOVE],
-            want: [MOVE],
+            basic: [MOVE],
+            perfer: [WORK, CARRY],
+            want: [WORK],
         },
         priority: (roomName) => {
             let basePriority = 5;
@@ -221,7 +211,7 @@ export const creepConfig: CreepConfig = {
     [CreepRole.REPAIRER]: {
         name: "Repairer",
         limitAmount: (roomName: string) => {
-            return 3;
+            return 0;
         },
         extraMemory: (spawn) => {
             return {
@@ -354,16 +344,27 @@ export const creepConfig: CreepConfig = {
                     if (creep.memory.transferDetail.storeStructureBeforeWorking != null) {
                         const container = Game.getObjectById(creep.memory.transferDetail.storeStructureBeforeWorking);
                         if (creep.transfer(container, RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
+                            creep.say("Saving");
                             creep.moveTo(container);
                         } else {
                             creep.memory.transferDetail.storeStructureBeforeWorking = null;
                         }
+                    } else {
+                        // 不知道能量放到哪的时候，去找一个地方放能量
+                        const container = findTheNearestContainerWithCapacity(creep);
+                        if (container != null) {
+                            creep.memory.transferDetail.storeStructureBeforeWorking = findTheNearestContainerWithCapacity(creep).id;
+                        } else {
+                            // 没有地方放的话，找一个升级者或者建筑工放
+                            creep.memory.transferDetail.storeStructureBeforeWorking = creep.room.find(FIND_MY_CREEPS, {
+                                filter: (creep) =>
+                                    creep.store.getUsedCapacity() > 0 &&
+                                    (creep.memory.role == CreepRole.UPGRADER || creep.memory.role == CreepRole.BUILDER),
+                            })[0].id;
+                        }
                     }
-                    // 不知道能量放到哪的时候，去找一个地方放能量
-                    else creep.memory.transferDetail.storeStructureBeforeWorking = findTheNearestContainerWithCapacity(creep).id;
                 } else {
                     // 没有transfer列表的话就直接退出就好
-
                     if (!Memory.transferQueue) return;
 
                     // 选择一份任务
@@ -371,10 +372,15 @@ export const creepConfig: CreepConfig = {
 
                     for (let i = 0; i < Memory.transferQueue.length; i++) {
                         const message = Memory.transferQueue[i];
-                        if (creepCarry >= message.amount && Game.getObjectById(message.from).room == creep.room) {
+                        // 判断任务是否还有效，因为比如墓碑或者creep被干掉了，那这个任务就是无效的
+                        if (Game.getObjectById(message.from) == null || Game.getObjectById(message.to) == null) {
+                            Memory.transferQueue.splice(i, 1);
+                        } else if (creepCarry >= message.amount && Game.getObjectById(message.from).room == creep.room) {
                             // 队列里删掉这个任务
-                            console.log(`creepConfig TRANSFER: 取出任务 ${creep.name} ${message.from} ${message.callback}`);
+                            console.log(`${creep.name} 接取任务 从 ${message.from} 到 ${message.to}`);
+                            creep.say("Get!");
                             creep.memory.transferDetail.callback = message.callback;
+                            creep.memory.transferDetail.callbackParams = message.callbackParams;
                             creep.memory.transferDetail.task = message;
                             creep.memory.transferDetail.arriveFrom = false;
                             creep.memory.transferDetail.working = true;
@@ -387,6 +393,7 @@ export const creepConfig: CreepConfig = {
             }
             // 如果在工作阶段，即为运输阶段
             else {
+                creep.say("Working");
                 // 去from工作
                 if (!creep.memory.transferDetail.arriveFrom) {
                     // 在源点要使用pickup方法时
@@ -415,10 +422,13 @@ export const creepConfig: CreepConfig = {
                             creep.moveTo(to);
                         } else {
                             // transfer finished
-                            creep.memory.transferDetail.working = false;
-                            creep.memory.transferDetail.arriveFrom = false;
-                            creep.say("finish task, run callback()");
-                            creep.memory.transferDetail.callback();
+                            if (creep.memory.transferDetail.working) {
+                                creep.memory.transferDetail.working = false;
+                                creep.memory.transferDetail.arriveFrom = false;
+                                creep.say("Done");
+                                // 任务完成，执行回调
+                                callbacks[creep.memory.transferDetail.callback](...creep.memory.transferDetail.callbackParams);
+                            }
                         }
                     }
                 }

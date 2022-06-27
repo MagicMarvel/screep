@@ -25,7 +25,8 @@ export interface TransferQueueItem {
     amount: number;
     priority: number;
     resourceType: ResourceConstant;
-    callback: () => void;
+    callback: string;
+    callbackParams: any[];
 }
 
 export default {
@@ -48,13 +49,15 @@ export default {
         amount: number,
         priority: number,
         resourceType?: ResourceConstant,
-        callback?: () => void
+        callback?: string,
+        ...callbackParams: any[]
     ) {
         if (!Memory.transferQueue) {
             Memory.transferQueue = [];
         }
+        if (!amount) amount = 150;
         // 没有的话给一个空函数
-        callback = callback || (() => {});
+        callback = callback || "blank";
         resourceType = resourceType || RESOURCE_ENERGY;
 
         const message = {
@@ -67,9 +70,11 @@ export default {
             priority,
             resourceType,
             callback,
+            callbackParams,
         };
-        console.log(`transferQueue: add message callback: ${typeof message.callback}`);
         Memory.transferQueue.push(message);
+        console.log(`运输队列新增一个任务 将 ${from.id} 运输至 ${to.id}`);
+
         sortBy(Memory.transferQueue, "priority");
     },
 };

@@ -11,7 +11,7 @@ interface repairerDetail {
 }
 
 interface builderDetail {
-    building: boolean;
+    buildingWhich: Id<ConstructionSite<BuildableStructureConstant>>;
 }
 
 interface upgradeDetail {
@@ -25,10 +25,11 @@ interface claimerDetail {
 interface transferDetail {
     working: boolean;
     task: TransferQueueItem;
-    storeStructureBeforeWorking: Id<AnyStoreStructure>;
+    storeStructureBeforeWorking: Id<AnyStoreStructure | Creep>;
     maxCarry: number;
     arriveFrom: boolean;
-    callback: () => void;
+    callback: string;
+    callbackParams: any[];
 }
 
 declare global {

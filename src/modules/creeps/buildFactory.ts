@@ -63,9 +63,12 @@ export default {
         let name = getName(type);
         let memory = getMemory(type, spawn);
 
+        // 这是全代码里唯一的一个生产Creep的地方
         let result = spawn.spawnCreep(body, name, { memory });
         if (result == OK) {
-            console.log(`<div style="color: red;">memory:${JSON.stringify(memory)} type:${type} spawn:${spawn}</div>`);
+            console.log(
+                `<div style="color: red;">生产Creep成功中,各种信息如下: </div>memory:${JSON.stringify(memory)} type:${type} spawn:${spawn}`
+            );
         }
         return result;
     },
