@@ -356,11 +356,18 @@ export const creepConfig: CreepConfig = {
                             creep.memory.transferDetail.storeStructureBeforeWorking = findTheNearestContainerWithCapacity(creep).id;
                         } else {
                             // 没有地方放的话，找一个升级者或者建筑工放
-                            creep.memory.transferDetail.storeStructureBeforeWorking = creep.room.find(FIND_MY_CREEPS, {
+                            const tmpContainer = creep.room.find(FIND_MY_CREEPS, {
                                 filter: (creep) =>
                                     creep.store.getUsedCapacity() > 0 &&
                                     (creep.memory.role == CreepRole.UPGRADER || creep.memory.role == CreepRole.BUILDER),
-                            })[0].id;
+                            });
+                            if (tmpContainer.length > 0) {
+                                // 找到了
+                                creep.memory.transferDetail.storeStructureBeforeWorking = tmpContainer[0].id;
+                            } else {
+                                // 没找到
+                                creep.memory.transferDetail.storeStructureBeforeWorking = null;
+                            }
                         }
                     }
                 } else {
