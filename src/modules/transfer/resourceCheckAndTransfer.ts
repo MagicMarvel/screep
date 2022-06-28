@@ -13,7 +13,7 @@ export const resourceCheckAndTransfer = () => {
         const droppedResourcesResources = room.find(FIND_DROPPED_RESOURCES, {
             filter: (resource) => {
                 // 过滤出所有没有mark的资源
-                return resource.amount > 100 && getMark(resource.id, "transfer") == null;
+                return resource.amount > 200 && getMark(resource.id, "transfer") == null;
             },
         });
 
@@ -30,7 +30,7 @@ export const resourceCheckAndTransfer = () => {
                 ToTaskType.transfer,
                 // 为了避免添加任务的时候还没有任何一个transferer，导致下面这个没有值，我们默认给一个100即可
                 Memory.transferMaximum || 100,
-                0,
+                1,
                 RESOURCE_ENERGY,
                 // 任务完成取消掉mark
                 DELETE_MARK,

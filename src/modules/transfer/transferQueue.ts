@@ -18,7 +18,7 @@ export enum ToTaskType {
 
 export interface TransferQueueItem {
     id: number;
-    from: Id<Resource<ResourceConstant>> | Id<Structure<StructureConstant>> | Id<Tombstone> | Id<Ruin>;
+    from: Id<Resource<ResourceConstant>> | Id<Tombstone> | Id<Ruin> | Id<StructureContainer> | Id<StructureStorage>;
     to: Id<Structure<StructureConstant>> | Id<Creep> | Id<PowerCreep>;
     fromTaskType: FromTaskType;
     toTaskType: ToTaskType;
@@ -42,8 +42,8 @@ export default {
      * @param callback 当任务完成后的回调函数，这是可选的,没有的话默认为空函数
      */
     addMessage(
-        from: Resource | Structure | Tombstone | Ruin,
-        to: Creep | PowerCreep | Structure,
+        from: Resource | StructureContainer | Tombstone | Ruin | StructureStorage,
+        to: Creep | PowerCreep | Structure | StructureExtension,
         fromTaskType: FromTaskType,
         toTaskType: ToTaskType,
         amount: number,
@@ -73,7 +73,7 @@ export default {
             callbackParams,
         };
         Memory.transferQueue.push(message);
-        console.log(`运输队列新增一个任务 将 ${from.id} 运输至 ${to.id}`);
+        console.log(`运输队列新增一个任务: ${from} 运输至 ${to}`);
 
         sortBy(Memory.transferQueue, "priority");
     },

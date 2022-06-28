@@ -36,7 +36,7 @@ export default function creepTakeEnergy(creep: Creep, priority?: number) {
                     FromTaskType.pickup,
                     ToTaskType.transfer,
                     Memory.transferMaximum,
-                    0,
+                    priority || 0,
                     "energy",
                     DELETE_MARK,
                     creep.id,

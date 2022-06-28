@@ -1,5 +1,5 @@
 /**
- * 返回离这个对象最近的可以存放资源的容器，可能为null
+ * 返回离这个对象最近的可以存放资源的容器，可能为null，优先extension和spawn
  * @param somtThing 任意的包含room和position的对象
  * @returns 离这个对象最近的可以存放资源的容器
  */
@@ -23,7 +23,7 @@ export function findTheNearestContainerWithCapacity<
                 (structure.structureType == STRUCTURE_CONTAINER ||
                     structure.structureType == STRUCTURE_EXTENSION ||
                     structure.structureType == STRUCTURE_SPAWN) &&
-                structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+                structure.store.getFreeCapacity(RESOURCE_ENERGY) >= 1
             );
         },
     }) as (StructureContainer | StructureExtension | StructureSpawn | null)[];
@@ -32,9 +32,13 @@ export function findTheNearestContainerWithCapacity<
     let nearest: StructureContainer | StructureExtension | StructureSpawn | null = null,
         nearestDistance = 999999999;
     containers.forEach((container) => {
-        const distance =
+        let distance =
             (container.pos.x - somtThing.pos.x) * (container.pos.x - somtThing.pos.x) +
             (container.pos.y - somtThing.pos.y) * (container.pos.y - somtThing.pos.y);
+        // 同时有container和extension优先放置extension和spawn
+        if (container.structureType == STRUCTURE_SPAWN || container.structureType == STRUCTURE_EXTENSION) {
+            distance = distance / 3;
+        }
         if (distance < nearestDistance) {
             nearestDistance = distance;
             nearest = container;

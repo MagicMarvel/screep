@@ -7,7 +7,7 @@ interface harvesterDetail {
 }
 
 interface repairerDetail {
-    repairing: boolean;
+    repairingWhich: Id<Structure<StructureConstant>>;
 }
 
 interface builderDetail {
