@@ -2,6 +2,7 @@
   "dependencies": {
     "@types/lodash": "3.10.1",
     "@types/screeps": "^3.3.0",
+    "screeps-multimeter": "^2.1.0",
     "source-map": "0.6.1"
   },
   "scripts": {

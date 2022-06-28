@@ -1,4 +1,5 @@
 .gitignore
 .secret.json
+.screeps.yaml
 node_modules
 /dist

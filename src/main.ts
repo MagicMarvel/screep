@@ -4,6 +4,8 @@ import cleanMemory from "./modules/init/cleanMemory";
 import runCreep from "./modules/init/assignCreep";
 import buildQueue from "./modules/creeps/buildQueue";
 import { resourceCheckAndTransfer } from "./modules/transfer/resourceCheckAndTransfer";
+var watcher = require("watch-client");
+
 export const loop = errorMapper(() => {
     cleanMemory();
 
@@ -16,4 +18,6 @@ export const loop = errorMapper(() => {
         buildQueue.checkCreepNumberAndBuild();
         resourceCheckAndTransfer();
     }
+
+    watcher();
 });
