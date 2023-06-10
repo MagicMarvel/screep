@@ -19,7 +19,7 @@ export enum ToTaskType {
 export interface TransferQueueItem {
     id: number;
     from: Id<Resource<ResourceConstant>> | Id<Tombstone> | Id<Ruin> | Id<StructureContainer> | Id<StructureStorage>;
-    to: Id<Structure<StructureConstant>> | Id<Creep> | Id<PowerCreep>;
+    to: Id<StructureContainer> | Id<StructureExtension> | Id<StructureSpawn> | Id<Creep> | Id<PowerCreep>;
     fromTaskType: FromTaskType;
     toTaskType: ToTaskType;
     amount: number;
@@ -43,7 +43,7 @@ export default {
      */
     addMessage(
         from: Resource | StructureContainer | Tombstone | Ruin | StructureStorage,
-        to: Creep | PowerCreep | Structure | StructureExtension,
+        to: Creep | PowerCreep | StructureContainer | StructureExtension | StructureSpawn,
         fromTaskType: FromTaskType,
         toTaskType: ToTaskType,
         amount: number,

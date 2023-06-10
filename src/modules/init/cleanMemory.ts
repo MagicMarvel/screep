@@ -21,8 +21,6 @@ export default function cleanMemory() {
                         Memory.creeps[name].transferDetail.task.callback,
                         ...Memory.creeps[name].transferDetail.task.callbackParams
                     );
-
-                    callbacks[Memory.creeps[name].transferDetail.callback](...Memory.creeps[name].transferDetail.callbackParams);
                 }
             }
             delete Memory.creeps[name];

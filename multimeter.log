@@ -86,3 +86,95 @@
 2022-06-28T15:49:06.008Z: Transfer39445564 接取任务 从 [resource (energy) #62bb1afeba7677d0db41593e] 到 [structure (container) #62ba941346a1a5b1ed549a5c]
 2022-06-28T15:49:12.888Z: Transfer39445052 接取任务 从 [structure (container) #62ba941346a1a5b1ed549a5c] 到 [creep Builder39445646]
 2022-06-28T15:49:12.888Z: Transfer39445564 完成任务 从 [resource (energy) #62bb1afeba7677d0db41593e] 到 [structure (container) #62ba941346a1a5b1ed549a5c]
+2022-06-28T15:50:17.320Z: Transfer39445186 接取任务 从 [resource (energy) #62bb1afeba7677d0db41593e] 到 [structure (container) #62ba941346a1a5b1ed549a5c]
+2022-06-28T15:50:29.573Z: Transfer39445186 完成任务 从 [resource (energy) #62bb1afeba7677d0db41593e] 到 [structure (container) #62ba941346a1a5b1ed549a5c]
+2022-06-28T15:50:29.573Z: 运输队列新增一个任务: [resource (energy) #62bb1afeba7677d0db41593e] 运输至 [structure (container) #62ba941346a1a5b1ed549a5c]
+2022-06-28T15:50:32.753Z: Transfer39444756 完成任务 从 [structure (container) #62ba941346a1a5b1ed549a5c] 到 [creep Builder39445646]
+2022-06-28T15:50:32.753Z: Transfer39445186 接取任务 从 [resource (energy) #62bb1afeba7677d0db41593e] 到 [structure (container) #62ba941346a1a5b1ed549a5c]
+2022-06-28T15:50:35.662Z: Transfer39445092 接取任务 从 [resource (energy) #62bb18547206d232e363862e] 到 [structure (extension) #62bad93e86de716a78f052da]
+2022-06-28T15:50:38.782Z: Transfer39445186 完成任务 从 [resource (energy) #62bb1afeba7677d0db41593e] 到 [structure (container) #62ba941346a1a5b1ed549a5c]
+2022-06-28T15:50:54.868Z: Transfer39444590 完成任务 从 [structure (container) #62ba941346a1a5b1ed549a5c] 到 [creep Repairer39445156]
+2022-06-28T15:50:54.868Z: 运输队列新增一个任务: [structure (container) #62ba941346a1a5b1ed549a5c] 运输至 [creep Repairer39445156]
+2022-06-28T15:51:13.526Z: Transfer39445052 完成任务 从 [structure (container) #62ba941346a1a5b1ed549a5c] 到 [creep Repairer39445484]
+2022-06-28T15:51:13.526Z: 运输队列新增一个任务: [structure (container) #62ba941346a1a5b1ed549a5c] 运输至 [creep Repairer39445484]
+2022-06-28T15:51:16.885Z: 运输队列新增一个任务: [structure (container) #62bacf2d6b6b4973401386f9] 运输至 [creep Builder39445646]
+2022-06-28T15:52:00.639Z: Error: Unknown module 'watch-client'
+    at Object.requireFn (&lt;runtime>:46500:23)
+    at main:16604:15
+    at main:16620:3
+    at Object.exports.evalCode (&lt;runtime>:15845:76)
+    at Object.requireFn (&lt;runtime>:46518:28)
+    at Object.exports.run (&lt;runtime>:46461:60)
+
+2022-06-28T15:52:03.459Z: Error: Unknown module 'watch-client'
+    at Object.requireFn (&lt;runtime>:46500:23)
+    at main:16604:15
+    at main:16620:3
+    at Object.exports.evalCode (&lt;runtime>:15845:76)
+    at Object.requireFn (&lt;runtime>:46518:28)
+    at Object.exports.run (&lt;runtime>:46461:60)
+
+2022-06-28T15:52:06.786Z: Error: Unknown module 'watch-client'
+    at Object.requireFn (&lt;runtime>:46500:23)
+    at main:16604:15
+    at main:16620:3
+    at Object.exports.evalCode (&lt;runtime>:15845:76)
+    at Object.requireFn (&lt;runtime>:46518:28)
+    at Object.exports.run (&lt;runtime>:46461:60)
+
+2022-06-28T15:52:09.731Z: Error: Unknown module 'watch-client'
+    at Object.requireFn (&lt;runtime>:46500:23)
+    at main:16604:15
+    at main:16620:3
+    at Object.exports.evalCode (&lt;runtime>:15845:76)
+    at Object.requireFn (&lt;runtime>:46518:28)
+    at Object.exports.run (&lt;runtime>:46461:60)
+
+2022-06-28T15:52:13.067Z: Error: Unknown module 'watch-client'
+    at Object.requireFn (&lt;runtime>:46500:23)
+    at main:16604:15
+    at main:16620:3
+    at Object.exports.evalCode (&lt;runtime>:15845:76)
+    at Object.requireFn (&lt;runtime>:46518:28)
+    at Object.exports.run (&lt;runtime>:46461:60)
+
+2022-06-28T15:52:15.352Z: Error: Unknown module 'watch-client'
+    at Object.requireFn (&lt;runtime>:46500:23)
+    at main:16604:15
+    at main:16620:3
+    at Object.exports.evalCode (&lt;runtime>:15845:76)
+    at Object.requireFn (&lt;runtime>:46518:28)
+    at Object.exports.run (&lt;runtime>:46461:60)
+
+2022-06-28T15:52:18.190Z: Error: Unknown module 'watch-client'
+    at Object.requireFn (&lt;runtime>:46500:23)
+    at main:16604:15
+    at main:16620:3
+    at Object.exports.evalCode (&lt;runtime>:15845:76)
+    at Object.requireFn (&lt;runtime>:46518:28)
+    at Object.exports.run (&lt;runtime>:46461:60)
+
+2022-06-28T15:52:21.975Z: Error: Unknown module 'watch-client'
+    at Object.requireFn (&lt;runtime>:46500:23)
+    at main:16604:15
+    at main:16620:3
+    at Object.exports.evalCode (&lt;runtime>:15845:76)
+    at Object.requireFn (&lt;runtime>:46518:28)
+    at Object.exports.run (&lt;runtime>:46461:60)
+
+2022-06-28T15:52:25.488Z: Error: Unknown module 'watch-client'
+    at Object.requireFn (&lt;runtime>:46500:23)
+    at main:16604:15
+    at main:16620:3
+    at Object.exports.evalCode (&lt;runtime>:15845:76)
+    at Object.requireFn (&lt;runtime>:46518:28)
+    at Object.exports.run (&lt;runtime>:46461:60)
+
+2022-06-28T15:52:28.181Z: Error: Unknown module 'watch-client'
+    at Object.requireFn (&lt;runtime>:46500:23)
+    at main:16604:15
+    at main:16620:3
+    at Object.exports.evalCode (&lt;runtime>:15845:76)
+    at Object.requireFn (&lt;runtime>:46518:28)
+    at Object.exports.run (&lt;runtime>:46461:60)
+

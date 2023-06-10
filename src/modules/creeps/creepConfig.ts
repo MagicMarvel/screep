@@ -109,10 +109,10 @@ export const creepConfig: CreepConfig = {
                 upgradeDetail: { upgrading: false },
             };
         },
-        work: function (creep: Creep) {
+        work: function(creep: Creep) {
             // 如果这个creep没有能量的话，就去收集能量
             if (creep.store.getUsedCapacity() < 100) {
-                creepTakeEnergy(creep, 0);
+                creepTakeEnergy(creep, 1);
             }
 
             if (creep.upgradeController(creep.room.controller) == ERR_NOT_IN_RANGE) {
@@ -136,7 +136,7 @@ export const creepConfig: CreepConfig = {
     [CreepRole.BUILDER]: {
         name: "Builder",
         limitAmount: (roomName: string) => {
-            return 3;
+            return 4;
         },
         extraMemory: (spawn) => {
             return {
@@ -183,7 +183,7 @@ export const creepConfig: CreepConfig = {
         priority: (roomName) => {
             let basePriority = 5;
             const creepNum = Memory.creepNumEachRoomEachType[roomName];
-
+            if (Game.rooms[roomName].controller.level == 1) basePriority = 0;
             return basePriority;
         },
     },
@@ -355,18 +355,39 @@ export const creepConfig: CreepConfig = {
             };
         },
         work: (creep: Creep): void => {
+            /**
+             * 对一个creep设置为不工作，且执行他的回调，清楚标记
+             * @param creep 对一个creep设置为结束工作
+             */
+            function finishTransferWork(creep: Creep) {
+                creep.memory.transferDetail.working = false;
+                creep.memory.transferDetail.arriveFrom = false;
+                // 任务完成，执行回调
+                callbacks[creep.memory.transferDetail.callback](...creep.memory.transferDetail.callbackParams);
+            }
+
+            // 正在孵化的话，不做任何事情
+            if (creep.spawning == true) {
+                return;
+            }
+
             if (Memory.transferMaximum == null) Memory.transferMaximum = creep.store.getCapacity();
             else Memory.transferMaximum = Math.max(Memory.transferMaximum, creep.store.getCapacity());
 
             // 如果不在工作阶段，即为准备阶段
             if (!creep.memory.transferDetail.working) {
                 // 如果自己还有能量，就需要先把能量放走
-                if (creep.store.getUsedCapacity() != 0) {
+                if (
+                    creep.store.getUsedCapacity() != 0
+                    // 如果队列里没有任务了或者任务少，就去放能量，
+                    // 否则直接去干下一个（不过感觉这个优化会导致地上掉落的资源越来越多，导致队列越来越长）
+                    //  && (Memory.transferQueue == null || Memory.transferQueue.length <= 1)
+                ) {
                     // 去放能量的地方放能量
                     if (creep.memory.transferDetail.storeStructureBeforeWorking != null) {
                         const container = Game.getObjectById(creep.memory.transferDetail.storeStructureBeforeWorking);
                         // 如果目标容器能量满了，那就换一个容器
-                        if (!container || container.store.getFreeCapacity() == 0) {
+                        if (!container || container.store.getFreeCapacity(creep.memory.transferDetail.task.resourceType) == 0) {
                             creep.memory.transferDetail.storeStructureBeforeWorking = null;
                             return;
                         }
@@ -399,10 +420,10 @@ export const creepConfig: CreepConfig = {
                     }
                 } else {
                     // 没有transfer列表的话就直接退出就好
-                    if (!Memory.transferQueue) return;
+                    if (Memory.transferQueue == null) return;
 
                     // 选择一份最近的任务
-                    const creepCarry = creep.store.getFreeCapacity();
+                    const creepCarry = creep.store.getFreeCapacity(RESOURCE_ENERGY);
                     let minMessageIndex = 0;
                     let minRange: number = 9999999999999;
                     for (let i = 0; i < Memory.transferQueue.length; i++) {
@@ -410,6 +431,8 @@ export const creepConfig: CreepConfig = {
                         // 判断任务是否还有效，因为比如墓碑或者creep被干掉了，那这个任务就是无效的
                         if (Game.getObjectById(message.to) == null) {
                             Memory.transferQueue.splice(i, 1);
+                            // 执行回调，清除掉标记
+                            callbacks[message.callback](...message.callbackParams);
                             i--;
                         } else {
                             // 判断是否from没了，没了就换个from
@@ -439,14 +462,37 @@ export const creepConfig: CreepConfig = {
                     creep.memory.transferDetail.task = message;
                     creep.memory.transferDetail.arriveFrom = false;
                     creep.memory.transferDetail.working = true;
+                    // 下面这个不用清掉回调，后面完成任务会清掉
                     Memory.transferQueue.splice(minMessageIndex, 1);
                 }
             }
             // 如果在工作阶段，即为运输阶段
             else {
                 creep.say("Working");
+                const transferDetail = creep.memory.transferDetail;
+
                 // 去from工作
                 if (!creep.memory.transferDetail.arriveFrom) {
+                    const from = Game.getObjectById(transferDetail.task.from);
+
+                    // from已经没了，那就换一个from
+                    if (
+                        from == null ||
+                        // from能量不够 那就去换一个from
+                        (from instanceof Resource && (from.amount == 0 || from.amount == undefined))
+                    ) {
+                        transferDetail.task.from = findTheNearestContainerWithEnergy(creep, transferDetail.task.amount).id;
+                        // 找不到任何的合格的from，那就放弃这个任务
+                        if (transferDetail.task.from == null) {
+                            console.log(
+                                `${creep.name} <div style="color:red;">放弃任务, 能量保留到transfer里</div> 原因: 找不到合适的from`
+                            );
+                            creep.say("Give up");
+                            finishTransferWork(creep);
+                            return;
+                        }
+                    }
+
                     // 在源点要使用pickup方法时
                     if (creep.memory.transferDetail.task.fromTaskType == FromTaskType.pickup) {
                         const to = Game.getObjectById(creep.memory.transferDetail.task.from);
@@ -467,25 +513,42 @@ export const creepConfig: CreepConfig = {
                     }
                 } else {
                     // 去to工作
+                    const to = Game.getObjectById(creep.memory.transferDetail.task.to);
+                    if (to == null || to.store.getFreeCapacity(creep.memory.transferDetail.task.resourceType) == 0) {
+                        console.log(
+                            `${creep.name} <div style="color:red;">放弃, 能量保留在transfer里</div> 原因: to: ${to} 已经没有空间了`
+                        );
+                        creep.say("Give up");
+                        finishTransferWork(creep);
+                        return;
+                    }
+
                     if (creep.memory.transferDetail.task.toTaskType == ToTaskType.transfer) {
-                        const to = Game.getObjectById(creep.memory.transferDetail.task.to);
-                        if (creep.transfer(to, RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
+                        const transferResult = creep.transfer(to, RESOURCE_ENERGY);
+                        if (
+                            (transferResult == ERR_NOT_IN_RANGE ||
+                                // 或者孵化中的creep
+                                transferResult == ERR_BUSY) &&
+                            to.store.getFreeCapacity(creep.memory.transferDetail.task.resourceType) > 0
+                        ) {
                             creep.moveTo(to);
-                        } else {
+                        } else if (transferResult == OK) {
                             // transfer finished
                             if (creep.memory.transferDetail.working) {
-                                creep.memory.transferDetail.working = false;
-                                creep.memory.transferDetail.arriveFrom = false;
                                 creep.say("Done");
                                 console.log(
                                     `${creep.name} 完成任务 从 ${Game.getObjectById(
                                         creep.memory.transferDetail.task.from
                                     )} 到 ${Game.getObjectById(creep.memory.transferDetail.task.to)}`
                                 );
-
-                                // 任务完成，执行回调
-                                callbacks[creep.memory.transferDetail.callback](...creep.memory.transferDetail.callbackParams);
+                                finishTransferWork(creep);
                             }
+                        } else {
+                            console.log(
+                                `<div style="color: red;"> ${creep.name} 发生错误: ${transferResult}</div> 原因: ${JSON.stringify(
+                                    creep.memory.transferDetail.task
+                                )}`
+                            );
                         }
                     }
                 }
@@ -499,7 +562,7 @@ export const creepConfig: CreepConfig = {
         priority: (roomName) => {
             let basePriority = 8;
             const creepNum = Memory.creepNumEachRoomEachType[roomName];
-            if (creepNum[CreepRole.TRANSFER] <= 3) {
+            if (creepNum[CreepRole.TRANSFER] <= 4) {
                 basePriority *= 100;
             }
 
