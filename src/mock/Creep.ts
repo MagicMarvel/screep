@@ -1,3 +1,4 @@
+import { CreepRole } from '../modules/creeps/declareCreepRoleEnum'
 import { getMock } from './index'
 
 // 伪造 creep 的默认值
@@ -7,7 +8,7 @@ class CreepMock {
     hits: number = 100
     hitsMax: number = 100
     id: Id<this> = `${new Date().getTime()}${Math.random()}` as Id<this>
-    memory: CreepMemory = { role: 'harvester', working: false }
+    memory: CreepMemory = { role: CreepRole.HARVESTER }
     my: boolean = true
     name: string = `creep${this.id}`
     owner: Owner = { username: 'hopgoldy' }

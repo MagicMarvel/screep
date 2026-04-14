@@ -9,18 +9,23 @@ export default function cleanMemory() {
             if (Memory.creeps[name].role === CreepRole.TRANSFER) {
                 // 且他在工作
                 if (Memory.creeps[name].transferDetail.working == true) {
-                    // 将他未完成的工作添加到队列里
-                    transferQueue.addMessage(
-                        Game.getObjectById(Memory.creeps[name].transferDetail.task.from),
-                        Game.getObjectById(Memory.creeps[name].transferDetail.task.to),
-                        Memory.creeps[name].transferDetail.task.fromTaskType,
-                        Memory.creeps[name].transferDetail.task.toTaskType,
-                        Memory.creeps[name].transferDetail.task.amount,
-                        Memory.creeps[name].transferDetail.task.priority,
-                        Memory.creeps[name].transferDetail.task.resourceType,
-                        Memory.creeps[name].transferDetail.task.callback,
-                        ...Memory.creeps[name].transferDetail.task.callbackParams
-                    );
+                    const task = Memory.creeps[name].transferDetail.task;
+                    const from = Game.getObjectById(task.from);
+                    const to = Game.getObjectById(task.to);
+                    // from或to已经不存在了，任务无效，直接跳过
+                    if (from && to) {
+                        transferQueue.addMessage(
+                            from,
+                            to,
+                            task.fromTaskType,
+                            task.toTaskType,
+                            task.amount,
+                            task.priority,
+                            task.resourceType,
+                            task.callback,
+                            ...task.callbackParams
+                        );
+                    }
                 }
             }
             delete Memory.creeps[name];

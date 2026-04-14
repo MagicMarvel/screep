@@ -53,9 +53,9 @@ export const getMockMemory = getMock<Memory>(MemoryMock);
  * 将 global 改造成类似游戏中的环境
  */
 export const refreshGlobalMock = function () {
-  global.Game = getMockGame();
-  global._ = _;
-  global.Memory = getMockMemory();
+  (global as any).Game = getMockGame();
+  (global as any)._ = _;
+  (global as any).Memory = getMockMemory();
 
   // 下面的 @screeps/common/lib/constants 就是所有的全局常量
   Object.assign(global, require("@screeps/common/lib/constants"));

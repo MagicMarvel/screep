@@ -6,6 +6,7 @@
         "baseUrl": "./",
         "sourceMap": true,
         "allowSyntheticDefaultImports": true,
+        "esModuleInterop": true,
         "paths": {
             "@/*": [
                 "./src/*"

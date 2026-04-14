@@ -16,7 +16,7 @@ type CreepConfig = {
         work: (creep: Creep) => void;
         body: {
             basic: BodyPartConstant[];
-            perfer: BodyPartConstant[];
+            prefer: BodyPartConstant[];
             want: BodyPartConstant[];
         };
         priority: (roomName: string) => number;
@@ -30,40 +30,32 @@ export const creepConfig: CreepConfig = {
             return 4;
         },
         extraMemory: (spawn: StructureSpawn) => {
-            let harvestingEachSourceCreepNum: {
-                [sourceId: Id<Source>]: number;
-            } = {};
+            const sources = spawn.room.find(FIND_SOURCES);
+            const harvestingEachSourceCreepNum: { [sourceId: Id<Source>]: number } = {};
+
+            // 只遍历同房间的harvester，而非所有creep
             for (const name in Game.creeps) {
                 const creep = Game.creeps[name];
+                if (creep.room.name != spawn.room.name) continue;
                 if (creep.memory.role == CreepRole.HARVESTER) {
-                    if (harvestingEachSourceCreepNum[creep.memory.harvesterDetail.harvesterWhich] == null) {
-                        harvestingEachSourceCreepNum[creep.memory.harvesterDetail.harvesterWhich] = 1;
-                    } else {
-                        harvestingEachSourceCreepNum[creep.memory.harvesterDetail.harvesterWhich]++;
-                    }
+                    const sourceId = creep.memory.harvesterDetail.harvesterWhich;
+                    harvestingEachSourceCreepNum[sourceId] = (harvestingEachSourceCreepNum[sourceId] || 0) + 1;
                 }
             }
 
-            // 如果有一个source的harvester没有到达上限，则在这里创建一个新的harvester
-            for (const name in harvestingEachSourceCreepNum) {
-                if (harvestingEachSourceCreepNum[name] < 2) {
-                    return {
-                        harvesterDetail: {
-                            harvesterWhich: name as Id<Source>,
-                        },
-                    };
+            // 优先分配给没有harvester的source
+            for (const source of sources) {
+                if (!harvestingEachSourceCreepNum[source.id]) {
+                    return { harvesterDetail: { harvesterWhich: source.id } };
                 }
             }
 
-            // 如果有source没有harvester，则在这里创建一个新的harvester
-            const sources = spawn.room.find(FIND_SOURCES);
-            for (let i = 0; i < sources.length; i++) {
-                const source = sources[i];
-                const sourceID = source.id;
-                if (harvestingEachSourceCreepNum[sourceID] == null) {
+            // 然后分配给harvester未满2个的source
+            for (const sourceId in harvestingEachSourceCreepNum) {
+                if (harvestingEachSourceCreepNum[sourceId] < 2) {
                     return {
                         harvesterDetail: {
-                            harvesterWhich: sourceID,
+                            harvesterWhich: sourceId as Id<Source>,
                         },
                     };
                 }
@@ -82,7 +74,7 @@ export const creepConfig: CreepConfig = {
         },
         body: {
             basic: [MOVE],
-            perfer: [WORK],
+            prefer: [WORK],
             want: [],
         },
         priority: (roomName) => {
@@ -113,15 +105,13 @@ export const creepConfig: CreepConfig = {
             // 如果这个creep没有能量的话，就去收集能量
             if (creep.store.getUsedCapacity() < 100) {
                 creepTakeEnergy(creep, 1);
-            }
-
-            if (creep.upgradeController(creep.room.controller) == ERR_NOT_IN_RANGE) {
+            } else if (creep.upgradeController(creep.room.controller) == ERR_NOT_IN_RANGE) {
                 creep.moveTo(creep.room.controller);
             }
         },
         body: {
             basic: [MOVE],
-            perfer: [WORK, CARRY],
+            prefer: [WORK, CARRY],
             want: [MOVE],
         },
         priority: (roomName) => {
@@ -146,29 +136,30 @@ export const creepConfig: CreepConfig = {
             };
         },
         work: (creep: Creep) => {
-            // 没有决定要建造哪一个建筑且没有能量的时候，就去呆着，不要堵路，决定好了建造那个的话就呆在要建造的东西的旁边
+            // 没有能量的时候，就去收集能量
             if (creep.store.getUsedCapacity() < 100) {
                 if (creep.memory.builderDetail.buildingWhich == null) creep.moveTo(Game.flags["Flag1"]);
                 creepTakeEnergy(creep);
-            }
-
-            if (creep.memory.builderDetail.buildingWhich == null || Game.getObjectById(creep.memory.builderDetail.buildingWhich) == null) {
+            } else if (creep.memory.builderDetail.buildingWhich == null || Game.getObjectById(creep.memory.builderDetail.buildingWhich) == null) {
                 // 选择一个可建的去建造
-                var targets = creep.room.find(FIND_CONSTRUCTION_SITES);
+                let targets = creep.room.find(FIND_CONSTRUCTION_SITES);
                 if (targets.length) {
                     creep.memory.builderDetail.buildingWhich = targets[0].id;
                 }
             } else {
                 // 去建造
-                if (creep.build(Game.getObjectById(creep.memory.builderDetail.buildingWhich)) == ERR_NOT_IN_RANGE) {
-                    creep.moveTo(Game.getObjectById(creep.memory.builderDetail.buildingWhich), {
+                const buildingTarget = Game.getObjectById(creep.memory.builderDetail.buildingWhich);
+                if (!buildingTarget) {
+                    creep.memory.builderDetail.buildingWhich = null;
+                } else if (creep.build(buildingTarget) == ERR_NOT_IN_RANGE) {
+                    creep.moveTo(buildingTarget, {
                         visualizePathStyle: { stroke: "#ffffff" },
                     });
                 }
                 // 建造完成了的话
                 if (
-                    Game.getObjectById(creep.memory.builderDetail.buildingWhich).progress ==
-                    Game.getObjectById(creep.memory.builderDetail.buildingWhich).progressTotal
+                    Game.getObjectById(creep.memory.builderDetail.buildingWhich)?.progress ==
+                    Game.getObjectById(creep.memory.builderDetail.buildingWhich)?.progressTotal
                 ) {
                     creep.say("Done");
                     creep.memory.builderDetail.buildingWhich = null;
@@ -177,7 +168,7 @@ export const creepConfig: CreepConfig = {
         },
         body: {
             basic: [MOVE],
-            perfer: [WORK, CARRY],
+            prefer: [WORK, CARRY],
             want: [WORK],
         },
         priority: (roomName) => {
@@ -210,7 +201,7 @@ export const creepConfig: CreepConfig = {
         },
         body: {
             basic: [],
-            perfer: [],
+            prefer: [],
             want: [],
         },
         priority: (roomName) => {
@@ -232,64 +223,61 @@ export const creepConfig: CreepConfig = {
             };
         },
         work: (creep: Creep) => {
-            // 没有决定要建造哪一个建筑且没有能量的时候，就去呆着，不要堵路，决定好了建造那个的话就呆在要建造的东西的旁边
+            // 没有能量的时候，就去收集能量
             if (creep.store.getUsedCapacity() < 100) {
                 if (creep.memory.repairerDetail.repairingWhich == null) creep.moveTo(Game.flags["Flag1"]);
                 creepTakeEnergy(creep);
-            }
-
-            //
-            if (
-                creep.memory.repairerDetail.repairingWhich == null ||
-                Game.getObjectById(creep.memory.repairerDetail.repairingWhich) == null
-            ) {
-                // 不知道要修啥的话，选择一个可修的去修
-                var targets = creep.room.find(FIND_STRUCTURES, {
-                    filter: (structure) => {
-                        return (
-                            (structure.structureType == STRUCTURE_CONTAINER ||
-                                structure.structureType == STRUCTURE_ROAD ||
-                                structure.structureType == STRUCTURE_RAMPART ||
-                                structure.structureType == STRUCTURE_WALL ||
-                                structure.structureType == STRUCTURE_LINK ||
-                                structure.structureType == STRUCTURE_STORAGE ||
-                                structure.structureType == STRUCTURE_TOWER ||
-                                structure.structureType == STRUCTURE_OBSERVER ||
-                                structure.structureType == STRUCTURE_POWER_BANK ||
-                                structure.structureType == STRUCTURE_POWER_SPAWN) &&
-                            structure.hits < structure.hitsMax
-                        );
-                    },
-                });
-                if (targets.length) {
-                    let repairingWhichHits = 1;
-                    targets.forEach((target) => {
-                        // 选择血量百分比最少的
-                        if (target.hits / target.hitsMax < repairingWhichHits) {
-                            creep.memory.repairerDetail.repairingWhich = target.id;
-                            repairingWhichHits = target.hits / target.hitsMax;
-                        }
-                    });
-                }
             } else {
-                // 知道要修什么的话
-                const repairResult = creep.repair(Game.getObjectById(creep.memory.repairerDetail.repairingWhich));
-                const repairingWhich = Game.getObjectById(creep.memory.repairerDetail.repairingWhich);
-                if (repairResult == ERR_NOT_IN_RANGE) {
-                    creep.moveTo(Game.getObjectById(creep.memory.repairerDetail.repairingWhich), {
-                        visualizePathStyle: { stroke: "#ffffff" },
+                const repairTarget = Game.getObjectById(creep.memory.repairerDetail.repairingWhich);
+                if (!repairTarget || repairTarget.hits == repairTarget.hitsMax) {
+                    // 不知道要修啥或者修好了，选择一个可修的去修
+                    const targets = creep.room.find(FIND_STRUCTURES, {
+                        filter: (structure) => {
+                            return (
+                                (structure.structureType == STRUCTURE_CONTAINER ||
+                                    structure.structureType == STRUCTURE_ROAD ||
+                                    structure.structureType == STRUCTURE_RAMPART ||
+                                    structure.structureType == STRUCTURE_WALL ||
+                                    structure.structureType == STRUCTURE_LINK ||
+                                    structure.structureType == STRUCTURE_STORAGE ||
+                                    structure.structureType == STRUCTURE_TOWER ||
+                                    structure.structureType == STRUCTURE_OBSERVER ||
+                                    structure.structureType == STRUCTURE_POWER_BANK ||
+                                    structure.structureType == STRUCTURE_POWER_SPAWN) &&
+                                structure.hits < structure.hitsMax
+                            );
+                        },
                     });
-                }
-                // 如果修好了的话，换目标
-                if (repairingWhich.hits == repairingWhich.hitsMax) {
-                    creep.say("Find newer");
-                    creep.memory.repairerDetail.repairingWhich = null;
+                    if (targets.length) {
+                        let minHitsRatio = 1;
+                        targets.forEach((target) => {
+                            // 选择血量百分比最少的
+                            if (target.hits / target.hitsMax < minHitsRatio) {
+                                creep.memory.repairerDetail.repairingWhich = target.id;
+                                minHitsRatio = target.hits / target.hitsMax;
+                            }
+                        });
+                    } else {
+                        creep.memory.repairerDetail.repairingWhich = null;
+                    }
+                } else {
+                    // 知道要修什么的话
+                    if (creep.repair(repairTarget) == ERR_NOT_IN_RANGE) {
+                        creep.moveTo(repairTarget, {
+                            visualizePathStyle: { stroke: "#ffffff" },
+                        });
+                    }
+                    // 如果修好了的话，换目标
+                    if (repairTarget.hits == repairTarget.hitsMax) {
+                        creep.say("Find newer");
+                        creep.memory.repairerDetail.repairingWhich = null;
+                    }
                 }
             }
         },
         body: {
             basic: [],
-            perfer: [WORK, CARRY, MOVE],
+            prefer: [WORK, CARRY, MOVE],
             want: [MOVE],
         },
         priority: (roomName) => {
@@ -321,7 +309,7 @@ export const creepConfig: CreepConfig = {
         },
         body: {
             basic: [],
-            perfer: [ATTACK, MOVE],
+            prefer: [ATTACK, MOVE],
             want: [MOVE],
         },
         priority: (roomName) => {
@@ -428,21 +416,24 @@ export const creepConfig: CreepConfig = {
                     let minRange: number = 9999999999999;
                     for (let i = 0; i < Memory.transferQueue.length; i++) {
                         const message = Memory.transferQueue[i];
+                        const toObj = Game.getObjectById(message.to);
                         // 判断任务是否还有效，因为比如墓碑或者creep被干掉了，那这个任务就是无效的
-                        if (Game.getObjectById(message.to) == null) {
+                        if (toObj == null) {
                             Memory.transferQueue.splice(i, 1);
                             // 执行回调，清除掉标记
                             callbacks[message.callback](...message.callbackParams);
                             i--;
                         } else {
+                            let fromObj = Game.getObjectById(message.from);
                             // 判断是否from没了，没了就换个from
-                            if (Game.getObjectById(message.from) == null) {
-                                Memory.transferQueue[i].from = findTheNearestContainerWithEnergy(Game.getObjectById(message.to)).id;
+                            if (fromObj == null) {
+                                fromObj = findTheNearestContainerWithEnergy(toObj);
+                                if (fromObj) Memory.transferQueue[i].from = fromObj.id;
                             }
 
                             //   选择一个离creep最近的任务
-                            if (creepCarry >= message.amount && Game.getObjectById(message.from).room == creep.room) {
-                                const fromPos = Game.getObjectById(message.from).pos;
+                            if (fromObj && creepCarry >= message.amount && fromObj.room == creep.room) {
+                                const fromPos = fromObj.pos;
                                 if (creep.pos.getRangeTo(fromPos) < minRange) {
                                     minRange = creep.pos.getRangeTo(fromPos);
                                     minMessageIndex = i;
@@ -455,7 +446,9 @@ export const creepConfig: CreepConfig = {
 
                     const message = Memory.transferQueue[minMessageIndex];
                     // 队列里删掉这个任务
-                    console.log(`${creep.name} 接取任务 从 ${Game.getObjectById(message.from)} 到 ${Game.getObjectById(message.to)}`);
+                    const taskFrom = Game.getObjectById(message.from);
+                    const taskTo = Game.getObjectById(message.to);
+                    console.log(`${creep.name} 接取任务 从 ${taskFrom} 到 ${taskTo}`);
                     creep.say("Get!");
                     creep.memory.transferDetail.callback = message.callback;
                     creep.memory.transferDetail.callbackParams = message.callbackParams;
@@ -481,9 +474,8 @@ export const creepConfig: CreepConfig = {
                         // from能量不够 那就去换一个from
                         (from instanceof Resource && (from.amount == 0 || from.amount == undefined))
                     ) {
-                        transferDetail.task.from = findTheNearestContainerWithEnergy(creep, transferDetail.task.amount).id;
-                        // 找不到任何的合格的from，那就放弃这个任务
-                        if (transferDetail.task.from == null) {
+                        const newFrom = findTheNearestContainerWithEnergy(creep, transferDetail.task.amount);
+                        if (newFrom == null) {
                             console.log(
                                 `${creep.name} <div style="color:red;">放弃任务, 能量保留到transfer里</div> 原因: 找不到合适的from`
                             );
@@ -491,22 +483,23 @@ export const creepConfig: CreepConfig = {
                             finishTransferWork(creep);
                             return;
                         }
+                        transferDetail.task.from = newFrom.id;
                     }
 
                     // 在源点要使用pickup方法时
                     if (creep.memory.transferDetail.task.fromTaskType == FromTaskType.pickup) {
-                        const to = Game.getObjectById(creep.memory.transferDetail.task.from);
-                        if (creep.pickup(<Resource<ResourceConstant>>to) == ERR_NOT_IN_RANGE) {
-                            creep.moveTo(to);
+                        const fromTarget = Game.getObjectById(creep.memory.transferDetail.task.from);
+                        if (creep.pickup(<Resource<ResourceConstant>>fromTarget) == ERR_NOT_IN_RANGE) {
+                            creep.moveTo(fromTarget);
                         } else {
                             creep.memory.transferDetail.arriveFrom = true;
                         }
                     }
                     // 在源点要使用withdraw方法时
                     if (creep.memory.transferDetail.task.fromTaskType == FromTaskType.withdraw) {
-                        const to = Game.getObjectById(creep.memory.transferDetail.task.from);
-                        if (creep.withdraw(<Structure<StructureConstant> | Tombstone | Ruin>to, RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
-                            creep.moveTo(to);
+                        const fromTarget = Game.getObjectById(creep.memory.transferDetail.task.from);
+                        if (creep.withdraw(<Structure<StructureConstant> | Tombstone | Ruin>fromTarget, RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
+                            creep.moveTo(fromTarget);
                         } else {
                             creep.memory.transferDetail.arriveFrom = true;
                         }
@@ -536,10 +529,10 @@ export const creepConfig: CreepConfig = {
                             // transfer finished
                             if (creep.memory.transferDetail.working) {
                                 creep.say("Done");
+                                const doneFrom = Game.getObjectById(creep.memory.transferDetail.task.from);
+                                const doneTo = Game.getObjectById(creep.memory.transferDetail.task.to);
                                 console.log(
-                                    `${creep.name} 完成任务 从 ${Game.getObjectById(
-                                        creep.memory.transferDetail.task.from
-                                    )} 到 ${Game.getObjectById(creep.memory.transferDetail.task.to)}`
+                                    `${creep.name} 完成任务 从 ${doneFrom} 到 ${doneTo}`
                                 );
                                 finishTransferWork(creep);
                             }
@@ -556,7 +549,7 @@ export const creepConfig: CreepConfig = {
         },
         body: {
             basic: [],
-            perfer: [CARRY, MOVE],
+            prefer: [CARRY, MOVE],
             want: [MOVE],
         },
         priority: (roomName) => {

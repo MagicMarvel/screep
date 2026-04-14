@@ -12,14 +12,14 @@ const getBody: (energy: number, type: CreepRole) => BodyPartConstant[] = (
         bodyCost += BODYPART_COST[bodypart]
     })
 
-    while (creepConfig[type].body.perfer.length > 0) {
+    while (creepConfig[type].body.prefer.length > 0) {
         let tmp = 0
-        creepConfig[type].body.perfer.forEach(bodypart => {
+        creepConfig[type].body.prefer.forEach(bodypart => {
             tmp += BODYPART_COST[bodypart]
         })
         if (bodyCost + tmp > energy) break
         bodyCost += tmp
-        creepConfig[type].body.perfer.forEach(bodypart => {
+        creepConfig[type].body.prefer.forEach(bodypart => {
             body.push(bodypart)
         })
     }

@@ -59,7 +59,7 @@ declare global {
                 [type in CreepRole]: number;
             };
         };
-        swaningCreepNumEachRoomEachType?: {
+        spawningCreepNumEachRoomEachType?: {
             [roomName: string]: {
                 [type in CreepRole]: number;
             };

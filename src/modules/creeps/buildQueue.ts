@@ -24,21 +24,23 @@ const addMessage = (spawn: StructureSpawn, type: CreepRole, mustUseAllEnergy: bo
  * 用任务的优先级给任务排序，优先级高的排前面
  */
 const sortBuildQueueByPriority = () => {
-  for (let i = 1; i < Memory.buildQueue.length; i++) {
-    let haveOrder = true;
-    for (let j = Memory.buildQueue.length - 1; j >= i; j--) {
-      if (
-        creepConfig[Memory.buildQueue[j].type].priority(Game.getObjectById(Memory.buildQueue[j].spawnId).room.name) >
-        creepConfig[Memory.buildQueue[j - 1].type].priority(Game.getObjectById(Memory.buildQueue[j - 1].spawnId).room.name)
-      ) {
-        haveOrder = false;
-        let tmp = Memory.buildQueue[j];
-        Memory.buildQueue[j] = Memory.buildQueue[j - 1];
-        Memory.buildQueue[j - 1] = tmp;
-      }
+  // 过滤掉无效任务（spawn已不存在）
+  Memory.buildQueue = Memory.buildQueue.filter((message) => {
+    return Game.getObjectById(message.spawnId) != null;
+  });
+
+  // 缓存每个任务的优先级，避免排序时重复调用
+  const priorityCache = new Map<string, number>();
+  const getPriority = (message: { spawnId: Id<StructureSpawn>; type: CreepRole }) => {
+    const key = `${message.spawnId}-${message.type}`;
+    if (!priorityCache.has(key)) {
+      const spawn = Game.getObjectById(message.spawnId);
+      priorityCache.set(key, spawn ? creepConfig[message.type].priority(spawn.room.name) : 0);
     }
-    if (haveOrder) break;
-  }
+    return priorityCache.get(key);
+  };
+
+  Memory.buildQueue.sort((a, b) => getPriority(b) - getPriority(a));
 };
 
 /**
@@ -50,13 +52,14 @@ const workMessage = () => {
 
   for (let i = 0; i < Memory.buildQueue.length; i++) {
     const message = Memory.buildQueue[i];
-    if (!hashMap.has(message.spawnId)) {
+    const spawn = Game.getObjectById(message.spawnId);
+    if (!hashMap.has(message.spawnId) && spawn) {
       hashMap.set(message.spawnId, true);
       const result = buildFactory.buildCreep(
-        Game.getObjectById(message.spawnId),
+        spawn,
         message.type,
         // 如果优先级大于100则表示不必要全部能量都使用
-        creepConfig[message.type].priority(Game.getObjectById(message.spawnId).room.name) > 100 ? false : message.mustUseAllEnergy
+        creepConfig[message.type].priority(spawn.room.name) > 100 ? false : message.mustUseAllEnergy
       );
       if (result == OK) {
         Memory.buildQueue.splice(i, 1);
@@ -106,12 +109,12 @@ const getCreepNumber = () => {
  * 得到每一个房间的准备孵化的每种creep的数量
  */
 const getSwaningCreepNumber = () => {
-  if (Memory.swaningCreepNumEachRoomEachType == null) {
-    Memory.swaningCreepNumEachRoomEachType = {};
+  if (Memory.spawningCreepNumEachRoomEachType == null) {
+    Memory.spawningCreepNumEachRoomEachType = {};
   }
 
   Object.getOwnPropertyNames(Game.rooms).forEach((roomName) => {
-    Memory.swaningCreepNumEachRoomEachType[roomName] = {
+    Memory.spawningCreepNumEachRoomEachType[roomName] = {
       [CreepRole.BUILDER]: 0,
       [CreepRole.HARVESTER]: 0,
       [CreepRole.TRANSFER]: 0,
@@ -124,7 +127,10 @@ const getSwaningCreepNumber = () => {
   if (Memory.buildQueue == null) Memory.buildQueue = [];
   if (Memory.buildQueue.length > 0)
     Memory.buildQueue.forEach((message) => {
-      Memory.swaningCreepNumEachRoomEachType[Game.getObjectById(message.spawnId).room.name][message.type]++;
+      const spawn = Game.getObjectById(message.spawnId);
+      if (spawn) {
+        Memory.spawningCreepNumEachRoomEachType[spawn.room.name][message.type]++;
+      }
     });
 };
 
@@ -138,11 +144,11 @@ const checkCreepNumberAndBuild = () => {
     const room = Game.rooms[roomName];
     for (const role in Memory.creepNumEachRoomEachType[room.name]) {
       if (
-        Memory.creepNumEachRoomEachType[room.name][role] + Memory.swaningCreepNumEachRoomEachType[room.name][role] <
+        Memory.creepNumEachRoomEachType[room.name][role] + Memory.spawningCreepNumEachRoomEachType[room.name][role] <
         creepConfig[role].limitAmount(roomName)
       ) {
         for (
-          let i = Memory.creepNumEachRoomEachType[room.name][role] + Memory.swaningCreepNumEachRoomEachType[room.name][role];
+          let i = Memory.creepNumEachRoomEachType[room.name][role] + Memory.spawningCreepNumEachRoomEachType[room.name][role];
           i < creepConfig[role].limitAmount(roomName);
           i++
         ) {

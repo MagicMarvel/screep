@@ -19,20 +19,23 @@ export const resourceCheckAndTransfer = () => {
 
         // 向transfer消息队列发送消息并mark资源
         droppedResourcesResources.forEach((resource) => {
-            // 要拿多少次发多少次消息
-            for (let i = 0; i < resource.amount / (Memory.transferMaximum || 100); i++) {
+            const carryAmount = Memory.transferMaximum || 100;
+            // 按实际需要搬运的次数计算任务数
+            const taskCount = Math.ceil(resource.amount / carryAmount);
+            for (let i = 0; i < taskCount; i++) {
+                if (getMark(resource.id, `transfer${i}`)) continue;
                 const nearest = findTheNearestContainerWithCapacity(resource);
                 // 如果所有的容器都没能力接受这个资源，那就退出
                 if (!nearest) return;
-                if (getMark(resource.id, `transfer${i}`)) continue;
                 setMark(resource.id, `transfer${i}`, true);
+                // 每个任务只搬运carryAmount，最后一个任务搬运剩余量
+                const amount = Math.min(resource.amount - i * carryAmount, carryAmount);
                 transferQueue.addMessage(
                     resource,
-                    findTheNearestContainerWithCapacity(resource),
+                    nearest,
                     FromTaskType.pickup,
                     ToTaskType.transfer,
-                    // 为了避免添加任务的时候还没有任何一个transferer，导致下面这个没有值，我们默认给一个100即可
-                    Math.min(resource.amount, Memory.transferMaximum || 100),
+                    amount,
                     1,
                     RESOURCE_ENERGY,
                     // 任务完成取消掉mark
@@ -57,10 +60,9 @@ export const resourceCheckAndTransfer = () => {
             setMark(resource.id, "transfer", true);
             transferQueue.addMessage(
                 resource,
-                findTheNearestContainerWithCapacity(resource),
+                nearest,
                 FromTaskType.withdraw,
                 ToTaskType.transfer,
-                // 为了避免添加任务的时候还没有任何一个transferer，导致下面这个没有值，我们默认给一个100即可
                 Math.min(resource.store.getUsedCapacity(RESOURCE_ENERGY), Memory.transferMaximum || 100),
                 0,
                 RESOURCE_ENERGY,
