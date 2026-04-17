@@ -1,5 +1,5 @@
-import { CreepRole } from "./declareCreepRoleEnum";
-import buildFactory from "./buildFactory";
+import { CreepRole } from "./creepRole";
+import buildFactory from "./creepSpawner";
 import { creepConfig } from "./creepConfig";
 
 
@@ -9,9 +9,9 @@ import { creepConfig } from "./creepConfig";
  * @param type 建造的creep类型，由CreepRole定义
  * @param mustUseAllEnergy 是否要建造最强壮那种
  */
-const addMessage = (spawn: StructureSpawn, type: CreepRole, mustUseAllEnergy: boolean = true) => {
+const enqueueSpawnTask = (spawn: StructureSpawn, type: CreepRole, mustUseAllEnergy: boolean = true) => {
   if (spawn == null) {
-    throw new Error(`buildQueue.ts: addMessage: spawn is null`);
+    throw new Error(`spawnQueue.ts: enqueueSpawnTask: spawn is null`);
   }
   Memory.buildQueue.push({
     spawnId: spawn.id,
@@ -25,17 +25,17 @@ const addMessage = (spawn: StructureSpawn, type: CreepRole, mustUseAllEnergy: bo
  */
 const sortBuildQueueByPriority = () => {
   // 过滤掉无效任务（spawn已不存在）
-  Memory.buildQueue = Memory.buildQueue.filter((message) => {
-    return Game.getObjectById(message.spawnId) != null;
+  Memory.buildQueue = Memory.buildQueue.filter((task) => {
+    return Game.getObjectById(task.spawnId) != null;
   });
 
   // 缓存每个任务的优先级，避免排序时重复调用
   const priorityCache = new Map<string, number>();
-  const getPriority = (message: { spawnId: Id<StructureSpawn>; type: CreepRole }) => {
-    const key = `${message.spawnId}-${message.type}`;
+  const getPriority = (task: { spawnId: Id<StructureSpawn>; type: CreepRole }) => {
+    const key = `${task.spawnId}-${task.type}`;
     if (!priorityCache.has(key)) {
-      const spawn = Game.getObjectById(message.spawnId);
-      priorityCache.set(key, spawn ? creepConfig[message.type].priority(spawn.room.name) : 0);
+      const spawn = Game.getObjectById(task.spawnId);
+      priorityCache.set(key, spawn ? creepConfig[task.type].priority(spawn.room.name) : 0);
     }
     return priorityCache.get(key);
   };
@@ -46,20 +46,20 @@ const sortBuildQueueByPriority = () => {
 /**
  * 根据优先级选择一个任务并执行
  */
-const workMessage = () => {
+const processBuildQueue = () => {
   sortBuildQueueByPriority();
-  const hashMap = new Map();
+  const processedSpawnIds = new Map();
 
   for (let i = 0; i < Memory.buildQueue.length; i++) {
-    const message = Memory.buildQueue[i];
-    const spawn = Game.getObjectById(message.spawnId);
-    if (!hashMap.has(message.spawnId) && spawn) {
-      hashMap.set(message.spawnId, true);
-      const result = buildFactory.buildCreep(
+    const task = Memory.buildQueue[i];
+    const spawn = Game.getObjectById(task.spawnId);
+    if (!processedSpawnIds.has(task.spawnId) && spawn) {
+      processedSpawnIds.set(task.spawnId, true);
+      const result = buildFactory.spawnCreep(
         spawn,
-        message.type,
+        task.type,
         // 如果优先级大于100则表示不必要全部能量都使用
-        creepConfig[message.type].priority(spawn.room.name) > 100 ? false : message.mustUseAllEnergy
+        creepConfig[task.type].priority(spawn.room.name) > 100 ? false : task.mustUseAllEnergy
       );
       if (result == OK) {
         Memory.buildQueue.splice(i, 1);
@@ -72,9 +72,8 @@ const workMessage = () => {
 /**
  * 得到每一个房间的每种creep的数量
  */
-const getCreepNumber = () => {
+const countCreepsByRoom = () => {
   if (Memory.creepNumEachRoomEachType == null) Memory.creepNumEachRoomEachType = {};
-  // console.log(`buildQueue.ts: getCreepNumber`);
 
   // 初始化creep数量
   Object.getOwnPropertyNames(Game.rooms).forEach((roomName) => {
@@ -108,7 +107,7 @@ const getCreepNumber = () => {
 /**
  * 得到每一个房间的准备孵化的每种creep的数量
  */
-const getSwaningCreepNumber = () => {
+const countSpawningCreeps = () => {
   if (Memory.spawningCreepNumEachRoomEachType == null) {
     Memory.spawningCreepNumEachRoomEachType = {};
   }
@@ -126,10 +125,10 @@ const getSwaningCreepNumber = () => {
   });
   if (Memory.buildQueue == null) Memory.buildQueue = [];
   if (Memory.buildQueue.length > 0)
-    Memory.buildQueue.forEach((message) => {
-      const spawn = Game.getObjectById(message.spawnId);
+    Memory.buildQueue.forEach((task) => {
+      const spawn = Game.getObjectById(task.spawnId);
       if (spawn) {
-        Memory.spawningCreepNumEachRoomEachType[spawn.room.name][message.type]++;
+        Memory.spawningCreepNumEachRoomEachType[spawn.room.name][task.type]++;
       }
     });
 };
@@ -138,30 +137,33 @@ const getSwaningCreepNumber = () => {
  * 检查creep数量并自动发布建造任务，启动建造流程
  */
 const checkCreepNumberAndBuild = () => {
-  getCreepNumber();
-  getSwaningCreepNumber();
+  countCreepsByRoom();
+  countSpawningCreeps();
   for (const roomName in Game.rooms) {
     const room = Game.rooms[roomName];
     for (const role in Memory.creepNumEachRoomEachType[room.name]) {
+      const limit = typeof creepConfig[role].limitAmount === "function"
+        ? creepConfig[role].limitAmount(roomName)
+        : creepConfig[role].limitAmount;
       if (
         Memory.creepNumEachRoomEachType[room.name][role] + Memory.spawningCreepNumEachRoomEachType[room.name][role] <
-        creepConfig[role].limitAmount(roomName)
+        limit
       ) {
         for (
           let i = Memory.creepNumEachRoomEachType[room.name][role] + Memory.spawningCreepNumEachRoomEachType[room.name][role];
-          i < creepConfig[role].limitAmount(roomName);
+          i < limit;
           i++
         ) {
-          addMessage(room.find(FIND_MY_SPAWNS)[0], (role as unknown) as CreepRole);
+          enqueueSpawnTask(room.find(FIND_MY_SPAWNS)[0], (role as unknown) as CreepRole);
         }
       }
     }
   }
-  getSwaningCreepNumber();
-  workMessage();
+  countSpawningCreeps();
+  processBuildQueue();
 };
 
 export default {
-  addMessage,
+  enqueueSpawnTask,
   checkCreepNumberAndBuild,
 };

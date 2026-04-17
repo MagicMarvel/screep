@@ -1,14 +1,14 @@
-import transferQueue, { FromTaskType, ToTaskType } from "../transfer/transferQueue";
-import { findTheNearestContainerWithCapacity } from "../utils/findTheNearestContainerWithCapacity";
+import transferQueue, { PickupMethod, DeliveryMethod } from "../transfer/transferQueue";
+import { findNearestStorage } from "../utils/findNearestStorage";
 import { deleteMark, getMark, setMark } from "../utils/markController";
 import { DELETE_MARK, DECREMENT_MARK } from "../callback/index";
 
 /**
  * 查找房间内最近的能量源（container/storage）
  */
-function findNearestEnergySource(room: Room): StructureContainer | StructureStorage | null {
+function findNearestStorageWithEnergy(room: Room): StructureContainer | StructureStorage | null {
     const sources = room.find(FIND_STRUCTURES, {
-        filter: (s) =>
+        filter: (s): s is StructureContainer | StructureStorage =>
             (s.structureType == STRUCTURE_CONTAINER || s.structureType == STRUCTURE_STORAGE) &&
             s.store.getUsedCapacity(RESOURCE_ENERGY) >= 100,
     });
@@ -39,10 +39,10 @@ export const resourceCheckAndTransfer = () => {
         const room = Game.rooms[roomName];
 
         // ===== 最高优先级：spawn/extension 能量补给 =====
-        const energySource = findNearestEnergySource(room);
+        const energySource = findNearestStorageWithEnergy(room);
         if (energySource) {
             const emptyStructures = room.find(FIND_MY_STRUCTURES, {
-                filter: (s) =>
+                filter: (s): s is StructureSpawn | StructureExtension =>
                     (s.structureType == STRUCTURE_SPAWN || s.structureType == STRUCTURE_EXTENSION) &&
                     s.store.getUsedCapacity(RESOURCE_ENERGY) === 0,
             });
@@ -50,11 +50,11 @@ export const resourceCheckAndTransfer = () => {
                 const tag = "refill";
                 if (getMark(target.id, tag)) return;
                 setMark(target.id, tag, true);
-                transferQueue.addMessage(
+                transferQueue.addTask(
                     energySource,
                     target,
-                    FromTaskType.withdraw,
-                    ToTaskType.transfer,
+                    PickupMethod.Withdraw,
+                    DeliveryMethod.Transfer,
                     target.store.getCapacity(RESOURCE_ENERGY),
                     -1,
                     RESOURCE_ENERGY,
@@ -66,13 +66,13 @@ export const resourceCheckAndTransfer = () => {
         }
 
         // ===== 检查地上掉落的资源 =====
-        const droppedResourcesResources = room.find(FIND_DROPPED_RESOURCES, {
+        const droppedResources = room.find(FIND_DROPPED_RESOURCES, {
             filter: (resource) => {
                 return resource.amount > 50;
             },
         });
 
-        droppedResourcesResources.forEach((resource) => {
+        droppedResources.forEach((resource) => {
             const tag = "transfer0";
             const existingTasks = getMark(resource.id, tag);
             const taskCount = existingTasks || 0;
@@ -81,15 +81,15 @@ export const resourceCheckAndTransfer = () => {
             if (remainAfterTasks <= 0) return;
 
             // 每轮扫描只发1个任务，完成后 DECREMENT_MARK 释放 mark，下轮补发
-            const nearest = findTheNearestContainerWithCapacity(resource);
+            const nearest = findNearestStorage(resource);
             if (!nearest) return;
 
             setMark(resource.id, tag, taskCount + 1);
-            transferQueue.addMessage(
+            transferQueue.addTask(
                 resource,
                 nearest,
-                FromTaskType.pickup,
-                ToTaskType.transfer,
+                PickupMethod.Pickup,
+                DeliveryMethod.Transfer,
                 Math.min(remainAfterTasks, maxCarry),
                 1,
                 RESOURCE_ENERGY,
@@ -106,14 +106,14 @@ export const resourceCheckAndTransfer = () => {
             },
         });
         tombstoneResources.forEach((resource) => {
-            const nearest = findTheNearestContainerWithCapacity(resource);
+            const nearest = findNearestStorage(resource);
             if (!nearest) return;
             setMark(resource.id, "transfer", true);
-            transferQueue.addMessage(
+            transferQueue.addTask(
                 resource,
                 nearest,
-                FromTaskType.withdraw,
-                ToTaskType.transfer,
+                PickupMethod.Withdraw,
+                DeliveryMethod.Transfer,
                 Math.min(resource.store.getUsedCapacity(RESOURCE_ENERGY), Memory.transferMaximum || 100),
                 0,
                 RESOURCE_ENERGY,

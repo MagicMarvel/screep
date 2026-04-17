@@ -1,33 +1,32 @@
-import buildQueue from "./modules/creeps/buildFactory";
-import { CreepRole } from "./modules/creeps/declareCreepRoleEnum";
-import { TransferQueueItem } from "./modules/transfer/transferQueue";
+import { CreepRole } from "./modules/creeps/creepRole";
+import { TransferTask } from "./modules/transfer/transferQueue";
 
-interface harvesterDetail {
-    harvesterWhich: Id<Source>;
+interface HarvesterMemory {
+    targetSourceId: Id<Source>;
 }
 
-interface repairerDetail {
-    repairingWhich: Id<Structure<StructureConstant>>;
+interface RepairerMemory {
+    targetStructureId: Id<Structure<StructureConstant>>;
 }
 
-interface builderDetail {
-    buildingWhich: Id<ConstructionSite<BuildableStructureConstant>>;
+interface BuilderMemory {
+    targetSiteId: Id<ConstructionSite<BuildableStructureConstant>>;
 }
 
-interface upgradeDetail {
+interface UpgraderMemory {
     upgrading: boolean;
 }
 
-interface claimerDetail {
+interface ClaimerMemory {
     claiming: boolean;
 }
 
-interface transferDetail {
+interface TransferMemory {
     working: boolean;
-    task: TransferQueueItem;
-    storeStructureBeforeWorking: Id<AnyStoreStructure | Creep>;
+    task: TransferTask;
+    preTaskStorageTargetId: Id<AnyStoreStructure | Creep>;
     maxCarry: number;
-    arriveFrom: boolean;
+    hasPickedUp: boolean;
     callback: string;
     callbackParams: any[];
 }
@@ -38,12 +37,12 @@ declare global {
          * 该 creep 的角色
          */
         role: CreepRole;
-        upgradeDetail?: upgradeDetail;
-        harvesterDetail?: harvesterDetail;
-        builderDetail?: builderDetail;
-        repairerDetail?: repairerDetail;
-        claimerDetail?: claimerDetail;
-        transferDetail?: transferDetail;
+        upgraderDetail?: UpgraderMemory;
+        harvesterDetail?: HarvesterMemory;
+        builderDetail?: BuilderMemory;
+        repairerDetail?: RepairerMemory;
+        claimerDetail?: ClaimerMemory;
+        transferDetail?: TransferMemory;
     }
 
     interface Memory {
@@ -64,7 +63,7 @@ declare global {
                 [type in CreepRole]: number;
             };
         };
-        transferQueue: TransferQueueItem[];
+        transferQueue: TransferTask[];
         // 目前运输的最大能量大小，大于这个则运输不了
         transferMaximum: number;
         // 用于全局标记，主要是信号量相似的用法，用于协调多个单位
@@ -73,5 +72,6 @@ declare global {
                 [flagName: string]: any;
             };
         };
+        badBuildTargets?: { [id: string]: number };
     }
 }

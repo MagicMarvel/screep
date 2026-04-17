@@ -1,14 +1,14 @@
 // 游戏入口函数
 import { errorMapper } from "./settings/errorMapper";
-import cleanMemory from "./modules/init/cleanMemory";
+import pruneMemory from "./modules/init/cleanMemory";
 import runCreep from "./modules/init/assignCreep";
 import buildQueue from "./modules/creeps/buildQueue";
-import { resourceCheckAndTransfer } from "./modules/transfer/resourceCheckAndTransfer";
+import { resourceCheckAndTransfer } from "./modules/transfer/resourceCollector";
 import { placeContainers } from "./modules/init/placeContainers";
 // var watcher = require("watch-client");
 
 export const loop = errorMapper(() => {
-    cleanMemory();
+    pruneMemory();
 
     runCreep();
 

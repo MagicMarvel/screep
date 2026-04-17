@@ -1,8 +1,8 @@
 import { callbacks } from "../callback";
-import { CreepRole } from "../creeps/declareCreepRoleEnum";
+import { CreepRole } from "../creeps/creepRole";
 import transferQueue from "../transfer/transferQueue";
 
-export default function cleanMemory() {
+export default function pruneMemory() {
     for (const name in Memory.creeps) {
         if (!Game.creeps[name]) {
             // 如果死去的是一个transfer
@@ -14,11 +14,11 @@ export default function cleanMemory() {
                     const to = Game.getObjectById(task.to);
                     // from或to已经不存在了，任务无效，直接跳过
                     if (from && to) {
-                        transferQueue.addMessage(
+                        transferQueue.addTask(
                             from,
                             to,
-                            task.fromTaskType,
-                            task.toTaskType,
+                            task.pickupMethod,
+                            task.deliveryMethod,
                             task.amount,
                             task.priority,
                             task.resourceType,

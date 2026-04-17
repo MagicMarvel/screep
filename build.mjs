@@ -122,8 +122,8 @@ async function deployUpload(config) {
     const branch = config.branch || "default";
 
     try {
-        const { data } = await api.raw.user.branches();
-        const branches = data.list.map((b) => b.branch);
+        const res = await api.raw.user.branches();
+        const branches = res?.list?.map((b) => b.branch) || [];
 
         if (branches.includes(branch)) {
             await api.code.set(branch, code);

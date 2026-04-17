@@ -1,10 +1,10 @@
-import { CreepRole } from "../creeps/declareCreepRoleEnum";
+import { CreepRole } from "../creeps/creepRole";
 
 /**
  * @param {Creep} creep 需要获得能量的creep
  */
 export default (creep: Creep) => {
-  let sources = creep.room.find(FIND_STRUCTURES, {
+  let energyStructures = creep.room.find(FIND_STRUCTURES, {
     filter: (structure) => {
       return (
         (structure.structureType == STRUCTURE_CONTAINER ||
@@ -15,11 +15,11 @@ export default (creep: Creep) => {
     },
   });
 
-  const containers = sources.filter((source) => {
-    return source.structureType == STRUCTURE_CONTAINER;
+  const containers = energyStructures.filter((s) => {
+    return s.structureType == STRUCTURE_CONTAINER;
   });
 
-  let maxDistance = 9999999;
+  let minDistance = Infinity;
   let target: AnyStructure;
 
   if (containers.length > 0) {
@@ -27,8 +27,8 @@ export default (creep: Creep) => {
       const x = creep.pos.x - container.pos.x;
       const y = creep.pos.y - container.pos.y;
       const distance = Math.sqrt(x * x + y * y);
-      if (distance < maxDistance) {
-        maxDistance = distance;
+      if (distance < minDistance) {
+        minDistance = distance;
         target = container;
       }
     });
@@ -38,17 +38,5 @@ export default (creep: Creep) => {
         visualizePathStyle: { stroke: "#ffffff" },
       });
     }
-  } else {
-    // let transfer = 0,
-    //   harvester = 0;
-    // for (const name in Game.creeps) {
-    //   if (Game.creeps[name].memory.role == CreepRole.TRANSFER) transfer++;
-    //   if (Game.creeps[name].memory.role == CreepRole.HARVESTER) harvester++;
-    // }
-    // if (creep.withdraw(sources[0], RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
-    //   creep.moveTo(sources[0], {
-    //     visualizePathStyle: { stroke: "#ffffff" },
-    //   });
-    // }
   }
 };

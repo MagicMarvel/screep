@@ -1,27 +1,27 @@
 /**
  * from: Resource|Structure|Tombstone|Ruin
  * to: RoomPosition|Creep|PowerCreep|Structure
- * fromTaskType: pickup withdraw
- * toTaskType: drop transfer
+ * pickupMethod: Pickup Withdraw
+ * deliveryMethod: Drop Transfer
  */
 
 import { sortBy } from "lodash";
 
-export enum FromTaskType {
-    pickup,
-    withdraw,
+export enum PickupMethod {
+    Pickup,
+    Withdraw,
 }
 
-export enum ToTaskType {
-    transfer,
+export enum DeliveryMethod {
+    Transfer,
 }
 
-export interface TransferQueueItem {
+export interface TransferTask {
     id: number;
     from: Id<Resource<ResourceConstant>> | Id<Tombstone> | Id<Ruin> | Id<StructureContainer> | Id<StructureStorage>;
     to: Id<StructureContainer> | Id<StructureExtension> | Id<StructureSpawn> | Id<Creep> | Id<PowerCreep>;
-    fromTaskType: FromTaskType;
-    toTaskType: ToTaskType;
+    pickupMethod: PickupMethod;
+    deliveryMethod: DeliveryMethod;
     amount: number;
     priority: number;
     resourceType: ResourceConstant;
@@ -34,18 +34,18 @@ export default {
      * 添加一个任务到队列
      * @param from 资源或者结构体或者墓碑或者残骸
      * @param to 房间位置或者creep或者powercreep或者结构体
-     * @param fromTaskType pickup withdraw二选一
-     * @param toTaskType drop transfer二选一
+     * @param pickupMethod pickup withdraw二选一
+     * @param deliveryMethod drop transfer二选一
      * @param amount 要转移的数量
      * @param priority 优先级
      * @param resourceType 资源的类型
      * @param callback 当任务完成后的回调函数，这是可选的,没有的话默认为空函数
      */
-    addMessage(
+    addTask(
         from: Resource | StructureContainer | Tombstone | Ruin | StructureStorage,
         to: Creep | PowerCreep | StructureContainer | StructureExtension | StructureSpawn,
-        fromTaskType: FromTaskType,
-        toTaskType: ToTaskType,
+        pickupMethod: PickupMethod,
+        deliveryMethod: DeliveryMethod,
         amount: number,
         priority: number,
         resourceType?: ResourceConstant,
@@ -57,22 +57,22 @@ export default {
         }
         if (!amount) amount = 150;
         // 没有的话给一个空函数
-        callback = callback || "blank";
+        callback = callback || "noop";
         resourceType = resourceType || RESOURCE_ENERGY;
 
-        const message = {
+        const task: TransferTask = {
             id: Game.time,
             from: from.id,
             to: to.id,
-            fromTaskType,
-            toTaskType,
+            pickupMethod,
+            deliveryMethod,
             amount,
             priority,
             resourceType,
             callback,
             callbackParams,
         };
-        Memory.transferQueue.push(message);
+        Memory.transferQueue.push(task);
         console.log(`运输队列新增一个任务: ${from} 运输至 ${to}`);
 
         sortBy(Memory.transferQueue, "priority");

@@ -1,4 +1,4 @@
-import { CreepRole } from '../modules/creeps/declareCreepRoleEnum'
+import { CreepRole } from '../modules/creeps/creepRole'
 import { getMock } from './index'
 
 // 伪造 creep 的默认值
