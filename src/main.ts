@@ -4,6 +4,7 @@ import cleanMemory from "./modules/init/cleanMemory";
 import runCreep from "./modules/init/assignCreep";
 import buildQueue from "./modules/creeps/buildQueue";
 import { resourceCheckAndTransfer } from "./modules/transfer/resourceCheckAndTransfer";
+import { placeContainers } from "./modules/init/placeContainers";
 // var watcher = require("watch-client");
 
 export const loop = errorMapper(() => {
@@ -17,6 +18,11 @@ export const loop = errorMapper(() => {
     if (Game.time % 2 === 0) {
         buildQueue.checkCreepNumberAndBuild();
         resourceCheckAndTransfer();
+    }
+
+    // 每20tick检查是否需要在source旁放置container
+    if (Game.time % 20 === 0) {
+        placeContainers();
     }
 
     // watcher();

@@ -1,61 +1,112 @@
 import transferQueue, { FromTaskType, ToTaskType } from "../transfer/transferQueue";
 import { findTheNearestContainerWithCapacity } from "../utils/findTheNearestContainerWithCapacity";
 import { deleteMark, getMark, setMark } from "../utils/markController";
-import { DELETE_MARK } from "../callback/index";
+import { DELETE_MARK, DECREMENT_MARK } from "../callback/index";
+
 /**
- * 这个函数用于检查地上的资源并转移到最近的容器中
+ * 查找房间内最近的能量源（container/storage）
+ */
+function findNearestEnergySource(room: Room): StructureContainer | StructureStorage | null {
+    const sources = room.find(FIND_STRUCTURES, {
+        filter: (s) =>
+            (s.structureType == STRUCTURE_CONTAINER || s.structureType == STRUCTURE_STORAGE) &&
+            s.store.getUsedCapacity(RESOURCE_ENERGY) >= 100,
+    });
+    if (sources.length === 0) return null;
+
+    let nearest: StructureContainer | StructureStorage | null = null;
+    let minDist = Infinity;
+    sources.forEach((s) => {
+        // 简单取第一个 spawn 为参考点
+        const spawn = room.find(FIND_MY_SPAWNS)[0];
+        const dist = spawn ? spawn.pos.getRangeTo(s) : 0;
+        if (dist < minDist) {
+            minDist = dist;
+            nearest = s;
+        }
+    });
+    return nearest;
+}
+
+/**
+ * 这个函数用于检查地上的资源并转移到最近的容器中，
+ * 同时检查 spawn/extension 能量不足时发布最高优先级补给任务
  */
 export const resourceCheckAndTransfer = () => {
+    const maxCarry = Memory.transferMaximum || 100;
+
     for (const roomName in Game.rooms) {
         const room = Game.rooms[roomName];
 
-        // 检查有无地上掉落的资源
+        // ===== 最高优先级：spawn/extension 能量补给 =====
+        const energySource = findNearestEnergySource(room);
+        if (energySource) {
+            const emptyStructures = room.find(FIND_MY_STRUCTURES, {
+                filter: (s) =>
+                    (s.structureType == STRUCTURE_SPAWN || s.structureType == STRUCTURE_EXTENSION) &&
+                    s.store.getUsedCapacity(RESOURCE_ENERGY) === 0,
+            });
+            emptyStructures.forEach((target) => {
+                const tag = "refill";
+                if (getMark(target.id, tag)) return;
+                setMark(target.id, tag, true);
+                transferQueue.addMessage(
+                    energySource,
+                    target,
+                    FromTaskType.withdraw,
+                    ToTaskType.transfer,
+                    target.store.getCapacity(RESOURCE_ENERGY),
+                    -1,
+                    RESOURCE_ENERGY,
+                    DELETE_MARK,
+                    target.id,
+                    tag
+                );
+            });
+        }
+
+        // ===== 检查地上掉落的资源 =====
         const droppedResourcesResources = room.find(FIND_DROPPED_RESOURCES, {
             filter: (resource) => {
-                // 过滤出所有资源
-                return resource.amount > 200;
+                return resource.amount > 50;
             },
         });
 
-        // 向transfer消息队列发送消息并mark资源
         droppedResourcesResources.forEach((resource) => {
-            const carryAmount = Memory.transferMaximum || 100;
-            // 按实际需要搬运的次数计算任务数
-            const taskCount = Math.ceil(resource.amount / carryAmount);
-            for (let i = 0; i < taskCount; i++) {
-                if (getMark(resource.id, `transfer${i}`)) continue;
-                const nearest = findTheNearestContainerWithCapacity(resource);
-                // 如果所有的容器都没能力接受这个资源，那就退出
-                if (!nearest) return;
-                setMark(resource.id, `transfer${i}`, true);
-                // 每个任务只搬运carryAmount，最后一个任务搬运剩余量
-                const amount = Math.min(resource.amount - i * carryAmount, carryAmount);
-                transferQueue.addMessage(
-                    resource,
-                    nearest,
-                    FromTaskType.pickup,
-                    ToTaskType.transfer,
-                    amount,
-                    1,
-                    RESOURCE_ENERGY,
-                    // 任务完成取消掉mark
-                    DELETE_MARK,
-                    resource.id,
-                    `transfer${i}`
-                );
-            }
+            const tag = "transfer0";
+            const existingTasks = getMark(resource.id, tag);
+            const taskCount = existingTasks || 0;
+            const remainAfterTasks = resource.amount - taskCount * maxCarry;
+
+            if (remainAfterTasks <= 0) return;
+
+            // 每轮扫描只发1个任务，完成后 DECREMENT_MARK 释放 mark，下轮补发
+            const nearest = findTheNearestContainerWithCapacity(resource);
+            if (!nearest) return;
+
+            setMark(resource.id, tag, taskCount + 1);
+            transferQueue.addMessage(
+                resource,
+                nearest,
+                FromTaskType.pickup,
+                ToTaskType.transfer,
+                Math.min(remainAfterTasks, maxCarry),
+                1,
+                RESOURCE_ENERGY,
+                DECREMENT_MARK,
+                resource.id,
+                tag
+            );
         });
 
-        // 检查有无墓碑
+        // ===== 检查墓碑 =====
         const tombstoneResources = room.find(FIND_TOMBSTONES, {
             filter: (tombstone) => {
                 return getMark(tombstone.id, "transfer") == null;
             },
         });
-        // 向transfer消息队列发送消息并mark资源
         tombstoneResources.forEach((resource) => {
             const nearest = findTheNearestContainerWithCapacity(resource);
-            // 如果所有的容器都没能力接受这个资源，那就退出
             if (!nearest) return;
             setMark(resource.id, "transfer", true);
             transferQueue.addMessage(
@@ -66,7 +117,6 @@ export const resourceCheckAndTransfer = () => {
                 Math.min(resource.store.getUsedCapacity(RESOURCE_ENERGY), Memory.transferMaximum || 100),
                 0,
                 RESOURCE_ENERGY,
-                // 任务完成取消掉mark
                 DELETE_MARK,
                 resource.id,
                 "transfer"

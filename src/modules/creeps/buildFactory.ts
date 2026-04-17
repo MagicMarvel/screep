@@ -2,40 +2,41 @@ import { assign } from 'lodash'
 import { CreepRole } from './declareCreepRoleEnum'
 import { creepConfig } from './creepConfig'
 
-const getBody: (energy: number, type: CreepRole) => BodyPartConstant[] = (
+/**
+ * 判断某角色在指定房间是否数量为0（需要紧急生产）
+ * 读不到数据时也视为紧急，避免死锁
+ */
+function isUrgent(type: CreepRole, roomName: string): boolean {
+    const count = Memory.creepNumEachRoomEachType?.[roomName]?.[type]
+    return count === 0 || count === undefined
+}
+
+const getBody: (energy: number, type: CreepRole) => BodyPartConstant[] | null = (
     energy,
     type
 ) => {
-    let body = creepConfig[type].body.basic
-    let bodyCost = 0
-    creepConfig[type].body.basic.forEach(bodypart => {
-        bodyCost += BODYPART_COST[bodypart]
-    })
+    const { template, maxRepeat, minTemplate } = creepConfig[type].body
+    const templateCost = template.reduce((sum, part) => sum + BODYPART_COST[part], 0)
 
-    while (creepConfig[type].body.prefer.length > 0) {
-        let tmp = 0
-        creepConfig[type].body.prefer.forEach(bodypart => {
-            tmp += BODYPART_COST[bodypart]
-        })
-        if (bodyCost + tmp > energy) break
-        bodyCost += tmp
-        creepConfig[type].body.prefer.forEach(bodypart => {
-            body.push(bodypart)
-        })
+    // 能量够完整模板，重复模板
+    if (templateCost <= energy) {
+        const repeat = Math.min(maxRepeat, Math.floor(energy / templateCost))
+        const body: BodyPartConstant[] = []
+        for (let i = 0; i < repeat; i++) {
+            body.push(...template)
+        }
+        return body
     }
 
-    while (creepConfig[type].body.want.length > 0) {
-        let tmp = 0
-        creepConfig[type].body.want.forEach(bodypart => {
-            tmp += BODYPART_COST[bodypart]
-        })
-        if (bodyCost + tmp > energy) break
-        bodyCost += tmp
-        creepConfig[type].body.want.forEach(bodypart => {
-            body.push(bodypart)
-        })
+    // 能量不够完整模板，尝试最小模板兜底
+    if (minTemplate) {
+        const minCost = minTemplate.reduce((sum, part) => sum + BODYPART_COST[part], 0)
+        if (minCost <= energy) {
+            return [...minTemplate]
+        }
     }
-    return body
+
+    return null
 }
 
 const getName = (type: CreepRole) => {
@@ -65,9 +66,22 @@ export default {
         type: CreepRole,
         mustUseAllEnergy: boolean
     ): ScreepsReturnCode => {
-        let energy =
-            mustUseAllEnergy == true ? spawn.room.energyCapacityAvailable : 300
+        let energy: number;
+        if (!mustUseAllEnergy || isUrgent(type, spawn.room.name)) {
+            energy = spawn.room.energyAvailable;
+        } else {
+            // 可用能量达到70%即开始生产，减少spawn空闲等待时间
+            const available = spawn.room.energyAvailable;
+            const capacity = spawn.room.energyCapacityAvailable;
+            energy = available >= capacity * 0.7 ? available : capacity;
+        }
         let body = getBody(energy, type)
+
+        // 能量不足以组装一个完整的模板，放弃生产
+        if (!body) {
+            return ERR_NOT_ENOUGH_RESOURCES
+        }
+
         let name = getName(type)
         let memory = getMemory(type, spawn)
 
@@ -76,7 +90,7 @@ export default {
 
         if (result == OK) {
             console.log(
-                `<div style="color: red;">生产Creep成功中,各种信息如下: </div>memory:${JSON.stringify(
+                `[生产Creep成功] memory:${JSON.stringify(
                     memory
                 )} type:${type} spawn:${spawn}`
             )
